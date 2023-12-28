@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/isd-sgcu/johnjud-file/internal/model"
+	"github.com/isd-sgcu/johnjud-file/pkg/repository/image"
 	proto "github.com/isd-sgcu/johnjud-go-proto/johnjud/file/image/v1"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
@@ -13,9 +14,10 @@ import (
 	"gorm.io/gorm"
 )
 
-type Service struct {
+type serviceImpl struct {
+	proto.UnimplementedImageServiceServer
 	client     Client
-	repository Repository
+	repository image.Repository
 }
 
 type Client interface {
@@ -23,20 +25,14 @@ type Client interface {
 	GetSignedUrl(string) (string, error)
 }
 
-type Repository interface {
-	FindByPetId(string, *[]*model.Image) error
-	Create(*model.Image) error
-	Delete(string) error
-}
-
-func NewService(client Client, repository Repository) *Service {
-	return &Service{
+func NewService(client Client, repository image.Repository) *serviceImpl {
+	return &serviceImpl{
 		client:     client,
 		repository: repository,
 	}
 }
 
-func (s *Service) FindByPetId(_ context.Context, req *proto.FindImageByPetIdRequest) (res *proto.FindImageByPetIdResponse, err error) {
+func (s *serviceImpl) FindByPetId(_ context.Context, req *proto.FindImageByPetIdRequest) (res *proto.FindImageByPetIdResponse, err error) {
 	var images []*model.Image
 
 	err = s.repository.FindByPetId(req.PetId, &images)
@@ -53,18 +49,19 @@ func (s *Service) FindByPetId(_ context.Context, req *proto.FindImageByPetIdRequ
 	return &proto.FindImageByPetIdResponse{Images: RawToDtoList(&images)}, nil
 }
 
-// func (s *Service) Upload(_ context.Context, req *proto.UploadImageRequest) (res *proto.UploadImageResponse, err error) {
-// 	raw, _ := DtoToRaw(req)
+func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (res *proto.UploadImageResponse, err error) {
+	// raw, _ := DtoToRaw(req)
 
-// 	err = s.repository.Create(raw)
-// 	if err != nil {
-// 		return nil, status.Error(codes.Internal, "failed to create like")
-// 	}
+	// err = s.repository.Create(raw)
+	// if err != nil {
+	// 	return nil, status.Error(codes.Internal, "failed to create like")
+	// }
 
-// 	return &proto.UploadImageResponse{Image: RawToDto(raw)}, nil
-// }
+	// return &proto.UploadImageResponse{Image: RawToDto(raw)}, nil
+	return nil, nil
+}
 
-func (s *Service) Delete(_ context.Context, req *proto.DeleteImageRequest) (res *proto.DeleteImageResponse, err error) {
+func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (res *proto.DeleteImageResponse, err error) {
 	err = s.repository.Delete(req.Id)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, "something wrong when deleting like")
