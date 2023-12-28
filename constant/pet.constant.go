@@ -1,4 +1,4 @@
-package pet
+package constant
 
 type Gender int
 
