@@ -1,12 +1,12 @@
 package s3
 
-import "github.com/isd-sgcu/johnjud-file/src/config"
+import "github.com/isd-sgcu/johnjud-file/cfgldr"
 
 type Client struct {
-	conf config.S3
+	conf cfgldr.S3
 }
 
-func NewClient(conf config.S3) *Client {
+func NewClient(conf cfgldr.S3) *Client {
 	return &Client{conf: conf}
 }
 

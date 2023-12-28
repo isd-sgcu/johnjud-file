@@ -5,8 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/isd-sgcu/johnjud-file/src/app/model"
-	"github.com/isd-sgcu/johnjud-file/src/app/model/image"
+	"github.com/isd-sgcu/johnjud-file/internal/model"
 	proto "github.com/isd-sgcu/johnjud-go-proto/johnjud/file/image/v1"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
@@ -25,8 +24,8 @@ type Client interface {
 }
 
 type Repository interface {
-	FindByPetId(string, *[]*image.Image) error
-	Create(*image.Image) error
+	FindByPetId(string, *[]*model.Image) error
+	Create(*model.Image) error
 	Delete(string) error
 }
 
@@ -38,7 +37,7 @@ func NewService(client Client, repository Repository) *Service {
 }
 
 func (s *Service) FindByPetId(_ context.Context, req *proto.FindImageByPetIdRequest) (res *proto.FindImageByPetIdResponse, err error) {
-	var images []*image.Image
+	var images []*model.Image
 
 	err = s.repository.FindByPetId(req.PetId, &images)
 	if err != nil {
@@ -74,7 +73,7 @@ func (s *Service) Delete(_ context.Context, req *proto.DeleteImageRequest) (res 
 	return &proto.DeleteImageResponse{Success: true}, nil
 }
 
-func DtoToRaw(in *proto.Image) (result *image.Image, err error) {
+func DtoToRaw(in *proto.Image) (result *model.Image, err error) {
 	var id uuid.UUID
 	if in.Id != "" {
 		id, err = uuid.Parse(in.Id)
@@ -88,7 +87,7 @@ func DtoToRaw(in *proto.Image) (result *image.Image, err error) {
 		return nil, err
 	}
 
-	return &image.Image{
+	return &model.Image{
 		Base: model.Base{
 			ID:        id,
 			CreatedAt: time.Time{},
@@ -100,7 +99,7 @@ func DtoToRaw(in *proto.Image) (result *image.Image, err error) {
 	}, nil
 }
 
-func RawToDtoList(in *[]*image.Image) []*proto.Image {
+func RawToDtoList(in *[]*model.Image) []*proto.Image {
 	var result []*proto.Image
 	for _, b := range *in {
 		result = append(result, RawToDto(b))
@@ -109,7 +108,7 @@ func RawToDtoList(in *[]*image.Image) []*proto.Image {
 	return result
 }
 
-func RawToDto(in *image.Image) *proto.Image {
+func RawToDto(in *model.Image) *proto.Image {
 	return &proto.Image{
 		Id:       in.ID.String(),
 		PetId:    in.PetID.String(),

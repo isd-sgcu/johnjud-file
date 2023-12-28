@@ -1,12 +1,11 @@
-package pet
+package model
 
 import (
-	"github.com/isd-sgcu/johnjud-file/src/app/model"
-	"github.com/isd-sgcu/johnjud-file/src/constant/pet"
+	"github.com/isd-sgcu/johnjud-file/constant/pet"
 )
 
 type Pet struct {
-	model.Base
+	Base
 	Type         string     `json:"type" gorm:"tinytext"`
 	Species      string     `json:"species" gorm:"tinytext"`
 	Name         string     `json:"name" gorm:"tinytext"`
