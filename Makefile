@@ -6,6 +6,9 @@ publish:
 	docker build . -t ghcr.io/isd-sgcu/johnjud-file
 	docker push ghcr.io/isd-sgcu/johnjud-file
 
+mock-gen:
+	mockgen -source ./pkg/repository/image/image.repository.go -destination ./mocks/repository/image/image.mock.go
+
 test:
 	go vet ./...
 	go test  -v -coverpkg ./src/app/... -coverprofile coverage.out -covermode count ./src/app/...
