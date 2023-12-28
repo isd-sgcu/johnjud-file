@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/isd-sgcu/johnjud-file/internal/model"
+	"github.com/isd-sgcu/johnjud-file/pkg/client/s3"
 	"github.com/isd-sgcu/johnjud-file/pkg/repository/image"
 	proto "github.com/isd-sgcu/johnjud-go-proto/johnjud/file/image/v1"
 	"github.com/rs/zerolog/log"
@@ -16,16 +17,11 @@ import (
 
 type serviceImpl struct {
 	proto.UnimplementedImageServiceServer
-	client     Client
+	client     s3.Client
 	repository image.Repository
 }
 
-type Client interface {
-	Upload([]byte, string) error
-	GetSignedUrl(string) (string, error)
-}
-
-func NewService(client Client, repository image.Repository) *serviceImpl {
+func NewService(client s3.Client, repository image.Repository) *serviceImpl {
 	return &serviceImpl{
 		client:     client,
 		repository: repository,
