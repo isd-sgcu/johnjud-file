@@ -2,7 +2,7 @@ package s3
 
 import (
 	"github.com/isd-sgcu/johnjud-file/cfgldr"
-	"github.com/isd-sgcu/johnjud-file/internal/client/s3"
+	"github.com/isd-sgcu/johnjud-file/client/s3"
 )
 
 type Client interface {
@@ -10,6 +10,6 @@ type Client interface {
 	GetSignedUrl(string) (string, error)
 }
 
-func NewClient(config cfgldr.S3) Client {
-	return s3.NewClient(config)
+func NewClient(config cfgldr.S3, awsClient s3.AWSClient) Client {
+	return s3.NewClient(config, awsClient)
 }
