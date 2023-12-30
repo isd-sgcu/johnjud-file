@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/isd-sgcu/johnjud-file/cfgldr"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -22,7 +23,7 @@ func NewClient(conf cfgldr.S3, awsClient *s3.Client) *Client {
 	return &Client{conf: conf, s3: awsClient}
 }
 
-func (c *Client) Upload(file []byte, filename string) error {
+func (c *Client) Upload(file []byte, objectKey string) error {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
 	defer cancel()
@@ -35,7 +36,7 @@ func (c *Client) Upload(file []byte, filename string) error {
 
 	_, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(c.conf.BucketName),
-		Key:    aws.String(filename),
+		Key:    aws.String(objectKey),
 		Body:   buffer,
 	})
 
@@ -44,7 +45,7 @@ func (c *Client) Upload(file []byte, filename string) error {
 			Err(err).
 			Str("service", "file").
 			Str("module", "bucket client").
-			Msgf("Couldn't upload large object to %v:%v.", c.conf.BucketName, filename)
+			Msgf("Couldn't upload object to %v:%v.", c.conf.BucketName, objectKey)
 
 		return errors.Wrap(err, "Error while uploading the object")
 	}
@@ -56,6 +57,28 @@ func (c *Client) GetSignedUrl(string) (string, error) {
 	return "", nil
 }
 
-func (c *Client) Delete(string) error {
+func (c *Client) Delete(objectKey string) error {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
+	defer cancel()
+
+	var objectIds []types.ObjectIdentifier
+	objectIds = append(objectIds, types.ObjectIdentifier{Key: aws.String(objectKey)})
+
+	_, err := c.s3.DeleteObjects(context.TODO(), &s3.DeleteObjectsInput{
+		Bucket: aws.String(c.conf.BucketName),
+		Delete: &types.Delete{Objects: objectIds},
+	})
+
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("service", "file").
+			Str("module", "bucket client").
+			Msgf("Couldn't delete object from bucket %v:%v.", c.conf.BucketName, objectKey)
+
+		return errors.Wrap(err, "Error while deleting the object")
+	}
+
 	return nil
 }
