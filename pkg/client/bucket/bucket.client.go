@@ -7,8 +7,7 @@ import (
 )
 
 type Client interface {
-	Upload([]byte, string) error
-	GetSignedUrl(string) (string, error)
+	Upload([]byte, string) (string, string, error)
 	Delete(string) error
 }
 

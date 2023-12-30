@@ -47,27 +47,13 @@ func (mr *MockClientMockRecorder) Delete(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockClient)(nil).Delete), arg0)
 }
 
-// GetSignedUrl mocks base method.
-func (m *MockClient) GetSignedUrl(arg0 string) (string, error) {
+// Upload mocks base method.
+func (m *MockClient) Upload(arg0 []byte, arg1 string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSignedUrl", arg0)
+	ret := m.ctrl.Call(m, "Upload", arg0, arg1)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
-}
-
-// GetSignedUrl indicates an expected call of GetSignedUrl.
-func (mr *MockClientMockRecorder) GetSignedUrl(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignedUrl", reflect.TypeOf((*MockClient)(nil).GetSignedUrl), arg0)
-}
-
-// Upload mocks base method.
-func (m *MockClient) Upload(arg0 []byte, arg1 string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Upload", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
 }
 
 // Upload indicates an expected call of Upload.

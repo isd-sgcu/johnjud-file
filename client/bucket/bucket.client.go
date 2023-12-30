@@ -3,6 +3,7 @@ package bucket
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -23,7 +24,7 @@ func NewClient(conf cfgldr.S3, awsClient *s3.Client) *Client {
 	return &Client{conf: conf, s3: awsClient}
 }
 
-func (c *Client) Upload(file []byte, objectKey string) error {
+func (c *Client) Upload(file []byte, objectKey string) (string, string, error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
 	defer cancel()
@@ -34,7 +35,7 @@ func (c *Client) Upload(file []byte, objectKey string) error {
 		u.PartSize = partMiBs * 1024 * 1024
 	})
 
-	_, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
+	uploadOutput, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(c.conf.BucketName),
 		Key:    aws.String(objectKey),
 		Body:   buffer,
@@ -47,14 +48,10 @@ func (c *Client) Upload(file []byte, objectKey string) error {
 			Str("module", "bucket client").
 			Msgf("Couldn't upload object to %v:%v.", c.conf.BucketName, objectKey)
 
-		return errors.Wrap(err, "Error while uploading the object")
+		return "", "", errors.Wrap(err, "Error while uploading the object")
 	}
 
-	return nil
-}
-
-func (c *Client) GetSignedUrl(string) (string, error) {
-	return "", nil
+	return fmt.Sprintf("https://%v.s3.%v.amazonaws.com/%v", c.conf.Region, c.conf.BucketName, uploadOutput.Key), *uploadOutput.Key, nil
 }
 
 func (c *Client) Delete(objectKey string) error {

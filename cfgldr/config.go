@@ -16,6 +16,7 @@ type Database struct {
 
 type S3 struct {
 	BucketName string `mapstructure:"bucket_name"`
+	Region     string `mapstructure:"region"`
 }
 
 type App struct {
