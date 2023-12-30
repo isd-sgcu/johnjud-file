@@ -55,3 +55,7 @@ func (c *Client) Upload(file []byte, filename string) error {
 func (c *Client) GetSignedUrl(string) (string, error) {
 	return "", nil
 }
+
+func (c *Client) Delete(string) error {
+	return nil
+}

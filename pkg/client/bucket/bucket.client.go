@@ -9,6 +9,7 @@ import (
 type Client interface {
 	Upload([]byte, string) error
 	GetSignedUrl(string) (string, error)
+	Delete(string) error
 }
 
 func NewClient(config cfgldr.S3, awsClient *s3.Client) Client {
