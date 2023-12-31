@@ -84,10 +84,10 @@ func (t *ImageServiceTest) TestUploadSuccess() {
 
 	imageRepo := mock_image.NewMockRepository(controller)
 	imageRepo.EXPECT().Create(createImage).Return(nil)
-	bucketClient := mock_bucket.ClientMock{}
-	bucketClient.On("Upload", t.uploadReq.Data, t.uploadReq.Filename).Return(t.imageProto.ImageUrl, t.imageProto.ObjectKey, nil)
+	bucketClient := mock_bucket.NewMockClient(controller)
+	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return(t.imageProto.ImageUrl, t.imageProto.ObjectKey, nil)
 
-	imageService := NewService(&bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo)
 	actual, err := imageService.Upload(context.Background(), t.uploadReq)
 
 	assert.Nil(t.T(), err)
