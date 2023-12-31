@@ -33,13 +33,23 @@ func (s *serviceImpl) FindByPetId(_ context.Context, req *proto.FindImageByPetId
 
 	err = s.repository.FindByPetId(req.PetId, &images)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Error().Err(err).
+				Str("service", "pet").
+				Str("module", "find by petId").
+				Str("petId", req.PetId).
+				Msg("Not found")
+
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+
 		log.Error().Err(err).
 			Str("service", "pet").
 			Str("module", "find by petId").
 			Str("petId", req.PetId).
-			Msg("Not found")
+			Msg("Internal error")
 
-		return nil, status.Error(codes.NotFound, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &proto.FindImageByPetIdResponse{Images: RawToDtoList(&images)}, nil
@@ -60,7 +70,23 @@ func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (
 func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (res *proto.DeleteImageResponse, err error) {
 	err = s.repository.Delete(req.Id)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "something wrong when deleting like")
+		if err == gorm.ErrRecordNotFound {
+			log.Error().Err(err).
+				Str("service", "pet").
+				Str("module", "delete").
+				Str("id", req.Id).
+				Msg("Not found")
+
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+
+		log.Error().Err(err).
+			Str("service", "pet").
+			Str("module", "delete").
+			Str("id", req.Id).
+			Msg("Internal error")
+
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &proto.DeleteImageResponse{Success: true}, nil
