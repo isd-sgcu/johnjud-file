@@ -88,6 +88,17 @@ func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (
 }
 
 func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (res *proto.DeleteImageResponse, err error) {
+	err = s.client.Delete(req.ObjectKey)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "pet").
+			Str("module", "delete").
+			Str("id", req.Id).
+			Msg("Error deleting image from bucket client")
+
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	err = s.repository.Delete(req.Id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -95,7 +106,7 @@ func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (
 				Str("service", "pet").
 				Str("module", "delete").
 				Str("id", req.Id).
-				Msg("Not found")
+				Msg("Image not found in db")
 
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
@@ -104,7 +115,7 @@ func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (
 			Str("service", "pet").
 			Str("module", "delete").
 			Str("id", req.Id).
-			Msg("Internal error")
+			Msg("Internal error deleting image from db")
 
 		return nil, status.Error(codes.Internal, err.Error())
 	}
