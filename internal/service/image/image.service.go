@@ -87,6 +87,46 @@ func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (
 	return &proto.UploadImageResponse{Image: RawToDto(raw)}, nil
 }
 
+func (s *serviceImpl) AssignPet(_ context.Context, req *proto.AssignPetRequest) (res *proto.AssignPetResponse, err error) {
+	petId, err := uuid.Parse(req.PetId)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "pet").
+			Str("module", "assign pet").
+			Str("petId", req.PetId).
+			Msg("Error parsing petId")
+
+		return nil, err
+	}
+
+	for _, id := range req.Ids {
+		err = s.repository.Update(id, &model.Image{
+			PetID: &petId,
+		})
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				log.Error().Err(err).
+					Str("service", "pet").
+					Str("module", "assign pet").
+					Str("petId", req.PetId).
+					Msg("Image not found in db")
+
+				return nil, status.Error(codes.NotFound, err.Error())
+			}
+
+			log.Error().Err(err).
+				Str("service", "pet").
+				Str("module", "assign pet").
+				Str("petId", req.PetId).
+				Msg("Internal error")
+
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	return &proto.AssignPetResponse{Success: true}, nil
+}
+
 func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (res *proto.DeleteImageResponse, err error) {
 	err = s.client.Delete(req.ObjectKey)
 	if err != nil {
