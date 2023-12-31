@@ -75,3 +75,17 @@ func (mr *MockRepositoryMockRecorder) FindByPetId(id, result interface{}) *gomoc
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByPetId", reflect.TypeOf((*MockRepository)(nil).FindByPetId), id, result)
 }
+
+// Update mocks base method.
+func (m *MockRepository) Update(id string, in *model.Image) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", id, in)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockRepositoryMockRecorder) Update(id, in interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockRepository)(nil).Update), id, in)
+}

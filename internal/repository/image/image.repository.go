@@ -21,6 +21,10 @@ func (r *repositoryImpl) Create(in *model.Image) error {
 	return r.db.Create(&in).Error
 }
 
+func (r *repositoryImpl) Update(id string, in *model.Image) error {
+	return r.db.Where(id, "id = ?", id).Updates(&in).First(&in, "id = ?", id).Error
+}
+
 func (r *repositoryImpl) Delete(id string) error {
 	return r.db.First(id).Delete(&model.Image{}).Error
 }
