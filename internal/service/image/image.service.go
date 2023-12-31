@@ -56,15 +56,35 @@ func (s *serviceImpl) FindByPetId(_ context.Context, req *proto.FindImageByPetId
 }
 
 func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (res *proto.UploadImageResponse, err error) {
-	// raw, _ := DtoToRaw(req)
+	imageUrl, objectKey, err := s.client.Upload(req.Data, req.Filename)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "pet").
+			Str("module", "upload").
+			Str("petId", req.PetId).
+			Msg("Error uploading to bucket client")
 
-	// err = s.repository.Create(raw)
-	// if err != nil {
-	// 	return nil, status.Error(codes.Internal, "failed to create like")
-	// }
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
-	// return &proto.UploadImageResponse{Image: RawToDto(raw)}, nil
-	return nil, nil
+	raw, _ := DtoToRaw(&proto.Image{
+		PetId:     req.PetId,
+		ImageUrl:  imageUrl,
+		ObjectKey: objectKey,
+	})
+
+	err = s.repository.Create(raw)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "pet").
+			Str("module", "upload").
+			Str("petId", req.PetId).
+			Msg("Error creating image")
+
+		return nil, status.Error(codes.Internal, "failed to create image")
+	}
+
+	return &proto.UploadImageResponse{Image: RawToDto(raw)}, nil
 }
 
 func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (res *proto.DeleteImageResponse, err error) {
@@ -113,8 +133,9 @@ func DtoToRaw(in *proto.Image) (result *model.Image, err error) {
 			UpdatedAt: time.Time{},
 			DeletedAt: gorm.DeletedAt{},
 		},
-		PetID:    &petId,
-		ImageUrl: in.ImageUrl,
+		PetID:     &petId,
+		ImageUrl:  in.ImageUrl,
+		ObjectKey: in.ObjectKey,
 	}, nil
 }
 
@@ -129,8 +150,9 @@ func RawToDtoList(in *[]*model.Image) []*proto.Image {
 
 func RawToDto(in *model.Image) *proto.Image {
 	return &proto.Image{
-		Id:       in.ID.String(),
-		PetId:    in.PetID.String(),
-		ImageUrl: in.ImageUrl,
+		Id:        in.ID.String(),
+		PetId:     in.PetID.String(),
+		ImageUrl:  in.ImageUrl,
+		ObjectKey: in.ObjectKey,
 	}
 }
