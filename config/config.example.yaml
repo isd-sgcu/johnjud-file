@@ -11,3 +11,4 @@ database:
 
 s3:
   bucket_name: <bucket name>
+  region: <region>

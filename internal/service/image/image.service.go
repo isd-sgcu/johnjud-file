@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/isd-sgcu/johnjud-file/internal/model"
-	"github.com/isd-sgcu/johnjud-file/pkg/client/s3"
+	"github.com/isd-sgcu/johnjud-file/pkg/client/bucket"
 	"github.com/isd-sgcu/johnjud-file/pkg/repository/image"
 	proto "github.com/isd-sgcu/johnjud-go-proto/johnjud/file/image/v1"
 	"github.com/rs/zerolog/log"
@@ -17,11 +17,11 @@ import (
 
 type serviceImpl struct {
 	proto.UnimplementedImageServiceServer
-	client     s3.Client
+	client     bucket.Client
 	repository image.Repository
 }
 
-func NewService(client s3.Client, repository image.Repository) *serviceImpl {
+func NewService(client bucket.Client, repository image.Repository) *serviceImpl {
 	return &serviceImpl{
 		client:     client,
 		repository: repository,
