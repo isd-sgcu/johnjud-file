@@ -12,7 +12,6 @@ import (
 	mock_bucket "github.com/isd-sgcu/johnjud-file/mocks/client/bucket"
 	mock_image "github.com/isd-sgcu/johnjud-file/mocks/repository/image"
 	proto "github.com/isd-sgcu/johnjud-go-proto/johnjud/file/image/v1"
-	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -80,7 +79,6 @@ func (t *ImageServiceTest) TestUploadSuccess() {
 	}
 
 	controller := gomock.NewController(t.T())
-	log.Info().Str("test", string(expected.Image.Id)).Msg("test")
 
 	imageRepo := mock_image.NewMockRepository(controller)
 	imageRepo.EXPECT().Create(createImage).Return(nil)
