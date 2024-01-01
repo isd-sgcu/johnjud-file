@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/isd-sgcu/johnjud-file/constant"
 	"github.com/isd-sgcu/johnjud-file/internal/model"
 	"github.com/isd-sgcu/johnjud-file/pkg/client/bucket"
 	"github.com/isd-sgcu/johnjud-file/pkg/repository/image"
@@ -35,21 +36,21 @@ func (s *serviceImpl) FindByPetId(_ context.Context, req *proto.FindImageByPetId
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			log.Error().Err(err).
-				Str("service", "pet").
+				Str("service", "image").
 				Str("module", "find by petId").
 				Str("petId", req.PetId).
-				Msg("Not found")
+				Msg(err.Error())
 
-			return nil, status.Error(codes.NotFound, err.Error())
+			return nil, status.Error(codes.NotFound, constant.PetNotFoundErrorMessage)
 		}
 
 		log.Error().Err(err).
-			Str("service", "pet").
+			Str("service", "image").
 			Str("module", "find by petId").
 			Str("petId", req.PetId).
-			Msg("Internal error")
+			Msg(err.Error())
 
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, constant.InternalServerErrorMessage)
 	}
 
 	return &proto.FindImageByPetIdResponse{Images: RawToDtoList(&images)}, nil
@@ -59,12 +60,12 @@ func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (
 	imageUrl, objectKey, err := s.client.Upload(req.Data, req.Filename)
 	if err != nil {
 		log.Error().Err(err).
-			Str("service", "pet").
+			Str("service", "image").
 			Str("module", "upload").
 			Str("petId", req.PetId).
-			Msg("Error uploading to bucket client")
+			Msg(err.Error())
 
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, constant.UploadToBucketErrorMessage)
 	}
 
 	raw, _ := DtoToRaw(&proto.Image{
@@ -76,12 +77,12 @@ func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (
 	err = s.repository.Create(raw)
 	if err != nil {
 		log.Error().Err(err).
-			Str("service", "pet").
+			Str("service", "image").
 			Str("module", "upload").
 			Str("petId", req.PetId).
-			Msg("Error creating image")
+			Msg(err.Error())
 
-		return nil, status.Error(codes.Internal, "failed to create image")
+		return nil, status.Error(codes.Internal, constant.CreateImageErrorMessage)
 	}
 
 	return &proto.UploadImageResponse{Image: RawToDto(raw)}, nil
@@ -91,12 +92,12 @@ func (s *serviceImpl) AssignPet(_ context.Context, req *proto.AssignPetRequest) 
 	petId, err := uuid.Parse(req.PetId)
 	if err != nil {
 		log.Error().Err(err).
-			Str("service", "pet").
+			Str("service", "image").
 			Str("module", "assign pet").
 			Str("petId", req.PetId).
-			Msg("Error parsing petId")
+			Msg(err.Error())
 
-		return nil, err
+		return nil, status.Error(codes.Internal, constant.UUIDParseErrorMessage)
 	}
 
 	for _, id := range req.Ids {
@@ -106,21 +107,21 @@ func (s *serviceImpl) AssignPet(_ context.Context, req *proto.AssignPetRequest) 
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				log.Error().Err(err).
-					Str("service", "pet").
+					Str("service", "image").
 					Str("module", "assign pet").
 					Str("petId", req.PetId).
-					Msg("Image not found in db")
+					Msg(err.Error())
 
-				return nil, status.Error(codes.NotFound, err.Error())
+				return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
 			}
 
 			log.Error().Err(err).
-				Str("service", "pet").
+				Str("service", "image").
 				Str("module", "assign pet").
 				Str("petId", req.PetId).
-				Msg("Internal error")
+				Msg(err.Error())
 
-			return nil, status.Error(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, constant.InternalServerErrorMessage)
 		}
 	}
 
@@ -131,33 +132,33 @@ func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (
 	err = s.client.Delete(req.ObjectKey)
 	if err != nil {
 		log.Error().Err(err).
-			Str("service", "pet").
+			Str("service", "image").
 			Str("module", "delete").
 			Str("id", req.Id).
-			Msg("Error deleting image from bucket client")
+			Msg(err.Error())
 
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, constant.DeleteFromBucketErrorMessage)
 	}
 
 	err = s.repository.Delete(req.Id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			log.Error().Err(err).
-				Str("service", "pet").
+				Str("service", "image").
 				Str("module", "delete").
 				Str("id", req.Id).
-				Msg("Image not found in db")
+				Msg(err.Error())
 
-			return nil, status.Error(codes.NotFound, err.Error())
+			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
 		}
 
 		log.Error().Err(err).
-			Str("service", "pet").
+			Str("service", "image").
 			Str("module", "delete").
 			Str("id", req.Id).
-			Msg("Internal error deleting image from db")
+			Msg(err.Error())
 
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, constant.DeleteImageErrorMessage)
 	}
 
 	return &proto.DeleteImageResponse{Success: true}, nil
