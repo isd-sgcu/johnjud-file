@@ -2,6 +2,8 @@ package image
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"time"
 
 	"github.com/google/uuid"
@@ -57,6 +59,16 @@ func (s *serviceImpl) FindByPetId(_ context.Context, req *proto.FindImageByPetId
 }
 
 func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (res *proto.UploadImageResponse, err error) {
+	randomString, err := generateRandomString(10)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "upload").
+			Str("petId", req.PetId).
+			Msg(err.Error())
+		return nil, status.Error(codes.Internal, "Error while generating random string")
+	}
+	req.Filename = req.Filename + "_" + randomString
 	imageUrl, objectKey, err := s.client.Upload(req.Data, req.Filename)
 	if err != nil {
 		log.Error().Err(err).
@@ -228,4 +240,18 @@ func RawToDto(in *model.Image) *proto.Image {
 		ImageUrl:  in.ImageUrl,
 		ObjectKey: in.ObjectKey,
 	}
+}
+
+func generateRandomString(length int) (string, error) {
+	numBytes := (length * 6) / 8
+
+	randomBytes := make([]byte, numBytes)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return "", err
+	}
+
+	randomString := base64.URLEncoding.EncodeToString(randomBytes)
+
+	return randomString[:length], nil
 }
