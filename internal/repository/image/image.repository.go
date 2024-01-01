@@ -31,5 +31,5 @@ func (r *repositoryImpl) Update(id string, in *model.Image) error {
 }
 
 func (r *repositoryImpl) Delete(id string) error {
-	return r.db.First(id).Delete(&model.Image{}).Error
+	return r.db.Where("id = ?", id).Delete(&model.Image{}).Error
 }
