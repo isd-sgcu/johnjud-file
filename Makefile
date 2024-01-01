@@ -16,4 +16,4 @@ test:
 	go tool cover -html=coverage.out -o coverage.html
 
 server:
-	go run ./src/.
+	go run ./cmd/.
