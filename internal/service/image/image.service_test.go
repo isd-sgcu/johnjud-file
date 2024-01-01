@@ -26,6 +26,7 @@ type ImageServiceTest struct {
 	petId      uuid.UUID
 	findReq    *proto.FindImageByPetIdRequest
 	uploadReq  *proto.UploadImageRequest
+	assignReq  *proto.AssignPetRequest
 	deleteReq  *proto.DeleteImageRequest
 	imageProto *proto.Image
 	image      *model.Image
@@ -50,6 +51,10 @@ func (t *ImageServiceTest) SetupTest() {
 		Filename: objectKey,
 		Data:     file,
 		PetId:    t.petId.String(),
+	}
+	t.assignReq = &proto.AssignPetRequest{
+		Ids:   []string{uuid.New().String(), uuid.New().String()},
+		PetId: t.petId.String(),
 	}
 	t.deleteReq = &proto.DeleteImageRequest{
 		Id:        id.String(),
@@ -240,287 +245,142 @@ func (t *ImageServiceTest) TestUploadRepoFailed() {
 	assert.Equal(t.T(), expected.Error(), err.Error())
 }
 
-// func (t *AuthServiceTest) TestSignupHashPasswordFailed() {
-// 	hashPasswordErr := errors.New("Hash password error")
-
-// 	expected := status.Error(codes.Internal, constant.InternalServerErrorMessage)
-
-// 	controller := gomock.NewController(t.T())
-
-// 	authRepo := mock_auth.NewMockRepository(controller)
-// 	userRepo := user.UserRepositoryMock{}
-// 	tokenService := token.TokenServiceMock{}
-// 	bcryptUtil := utils.BcryptUtilMock{}
-
-// 	bcryptUtil.On("GenerateHashedPassword", t.signupRequest.Password).Return("", hashPasswordErr)
-
-// 	authSvc := NewService(authRepo, &userRepo, &tokenService, &bcryptUtil)
-// 	actual, err := authSvc.SignUp(t.ctx, t.signupRequest)
-
-// 	status, ok := status.FromError(err)
-
-// 	assert.Nil(t.T(), actual)
-// 	assert.Equal(t.T(), codes.Internal, status.Code())
-// 	assert.True(t.T(), ok)
-// 	assert.Equal(t.T(), expected.Error(), err.Error())
-// }
-
-// func (t *AuthServiceTest) TestSignupCreateUserDuplicateConstraint() {
-// 	hashedPassword := faker.Password()
-// 	newUser := &model.User{
-// 		Email:     t.signupRequest.Email,
-// 		Password:  hashedPassword,
-// 		Firstname: t.signupRequest.FirstName,
-// 		Lastname:  t.signupRequest.LastName,
-// 		Role:      constant.USER,
-// 	}
-// 	createUserErr := gorm.ErrDuplicatedKey
-
-// 	expected := status.Error(codes.AlreadyExists, constant.DuplicateEmailErrorMessage)
-
-// 	controller := gomock.NewController(t.T())
-
-// 	authRepo := mock_auth.NewMockRepository(controller)
-// 	userRepo := user.UserRepositoryMock{}
-// 	tokenService := token.TokenServiceMock{}
-// 	bcryptUtil := utils.BcryptUtilMock{}
-
-// 	bcryptUtil.On("GenerateHashedPassword", t.signupRequest.Password).Return(hashedPassword, nil)
-// 	userRepo.On("Create", newUser).Return(nil, createUserErr)
-
-// 	authSvc := NewService(authRepo, &userRepo, &tokenService, &bcryptUtil)
-// 	actual, err := authSvc.SignUp(t.ctx, t.signupRequest)
-
-// 	status, ok := status.FromError(err)
-
-// 	assert.Nil(t.T(), actual)
-// 	assert.Equal(t.T(), codes.AlreadyExists, status.Code())
-// 	assert.True(t.T(), ok)
-// 	assert.Equal(t.T(), expected.Error(), err.Error())
-// }
-
-// func (t *AuthServiceTest) TestSignupCreateUserInternalFailed() {
-// 	hashedPassword := faker.Password()
-// 	newUser := &model.User{
-// 		Email:     t.signupRequest.Email,
-// 		Password:  hashedPassword,
-// 		Firstname: t.signupRequest.FirstName,
-// 		Lastname:  t.signupRequest.LastName,
-// 		Role:      constant.USER,
-// 	}
-// 	createUserErr := errors.New("Internal server error")
-
-// 	expected := status.Error(codes.Internal, constant.InternalServerErrorMessage)
-
-// 	controller := gomock.NewController(t.T())
-
-// 	authRepo := mock_auth.NewMockRepository(controller)
-// 	userRepo := user.UserRepositoryMock{}
-// 	tokenService := token.TokenServiceMock{}
-// 	bcryptUtil := utils.BcryptUtilMock{}
-
-// 	bcryptUtil.On("GenerateHashedPassword", t.signupRequest.Password).Return(hashedPassword, nil)
-// 	userRepo.On("Create", newUser).Return(nil, createUserErr)
-
-// 	authSvc := NewService(authRepo, &userRepo, &tokenService, &bcryptUtil)
-// 	actual, err := authSvc.SignUp(t.ctx, t.signupRequest)
-
-// 	status, ok := status.FromError(err)
-
-// 	assert.Nil(t.T(), actual)
-// 	assert.Equal(t.T(), codes.Internal, status.Code())
-// 	assert.True(t.T(), ok)
-// 	assert.Equal(t.T(), expected.Error(), err.Error())
-// }
-
-// func (t *AuthServiceTest) TestSignInSuccess() {
-// 	existUser := &model.User{
-// 		Base: model.Base{
-// 			ID: uuid.New(),
-// 		},
-// 		Email:     t.signInRequest.Email,
-// 		Password:  faker.Password(),
-// 		Firstname: faker.FirstName(),
-// 		Lastname:  faker.LastName(),
-// 		Role:      constant.USER,
-// 	}
-// 	newAuthSession := &model.AuthSession{
-// 		UserID: existUser.ID,
-// 	}
-// 	credential := &authProto.Credential{
-// 		AccessToken:  faker.Word(),
-// 		RefreshToken: faker.Word(),
-// 		ExpiresIn:    3600,
-// 	}
-
-// 	expected := &authProto.SignInResponse{Credential: credential}
-
-// 	controller := gomock.NewController(t.T())
-
-// 	authRepo := mock_auth.NewMockRepository(controller)
-// 	userRepo := user.UserRepositoryMock{}
-// 	tokenService := token.TokenServiceMock{}
-// 	bcryptUtil := utils.BcryptUtilMock{}
-
-// 	userRepo.On("FindByEmail", t.signInRequest.Email, &model.User{}).Return(existUser, nil)
-// 	bcryptUtil.On("CompareHashedPassword", existUser.Password, t.signInRequest.Password).Return(nil)
-// 	authRepo.EXPECT().Create(newAuthSession).Return(nil)
-// 	tokenService.On("CreateCredential", existUser.ID.String(), existUser.Role, newAuthSession.ID.String()).Return(credential, nil)
-
-// 	authSvc := NewService(authRepo, &userRepo, &tokenService, &bcryptUtil)
-// 	actual, err := authSvc.SignIn(t.ctx, t.signInRequest)
-
-// 	assert.Nil(t.T(), err)
-// 	assert.Equal(t.T(), expected.Credential.AccessToken, actual.Credential.AccessToken)
-// 	assert.Equal(t.T(), expected.Credential.RefreshToken, actual.Credential.RefreshToken)
-// }
-
-// func (t *AuthServiceTest) TestSignInUserNotFound() {
-// 	findUserErr := gorm.ErrRecordNotFound
-
-// 	expected := status.Error(codes.PermissionDenied, constant.IncorrectEmailPasswordErrorMessage)
-
-// 	controller := gomock.NewController(t.T())
-
-// 	authRepo := mock_auth.NewMockRepository(controller)
-// 	userRepo := user.UserRepositoryMock{}
-// 	tokenService := token.TokenServiceMock{}
-// 	bcryptUtil := utils.BcryptUtilMock{}
-
-// 	userRepo.On("FindByEmail", t.signInRequest.Email, &model.User{}).Return(nil, findUserErr)
-
-// 	authSvc := NewService(authRepo, &userRepo, &tokenService, &bcryptUtil)
-// 	actual, err := authSvc.SignIn(t.ctx, t.signInRequest)
-
-// 	status, ok := status.FromError(err)
-// 	assert.Nil(t.T(), actual)
-// 	assert.Equal(t.T(), codes.PermissionDenied, status.Code())
-// 	assert.True(t.T(), ok)
-// 	assert.Equal(t.T(), expected.Error(), err.Error())
-// }
-
-// func (t *AuthServiceTest) TestSignInUnmatchedPassword() {
-// 	existUser := &model.User{
-// 		Base: model.Base{
-// 			ID: uuid.New(),
-// 		},
-// 		Email:     t.signInRequest.Email,
-// 		Password:  faker.Password(),
-// 		Firstname: faker.FirstName(),
-// 		Lastname:  faker.LastName(),
-// 		Role:      constant.USER,
-// 	}
-// 	comparePwdErr := errors.New("Unmatched password")
-
-// 	expected := status.Error(codes.PermissionDenied, constant.IncorrectEmailPasswordErrorMessage)
-
-// 	controller := gomock.NewController(t.T())
-
-// 	authRepo := mock_auth.NewMockRepository(controller)
-// 	userRepo := user.UserRepositoryMock{}
-// 	tokenService := token.TokenServiceMock{}
-// 	bcryptUtil := utils.BcryptUtilMock{}
-
-// 	userRepo.On("FindByEmail", t.signInRequest.Email, &model.User{}).Return(existUser, nil)
-// 	bcryptUtil.On("CompareHashedPassword", existUser.Password, t.signInRequest.Password).Return(comparePwdErr)
-
-// 	authSvc := NewService(authRepo, &userRepo, &tokenService, &bcryptUtil)
-// 	actual, err := authSvc.SignIn(t.ctx, t.signInRequest)
-
-// 	status, ok := status.FromError(err)
-// 	assert.Nil(t.T(), actual)
-// 	assert.Equal(t.T(), codes.PermissionDenied, status.Code())
-// 	assert.True(t.T(), ok)
-// 	assert.Equal(t.T(), expected.Error(), err.Error())
-// }
-
-// func (t *AuthServiceTest) TestSignInCreateAuthSessionFailed() {
-// 	existUser := &model.User{
-// 		Base: model.Base{
-// 			ID: uuid.New(),
-// 		},
-// 		Email:     t.signInRequest.Email,
-// 		Password:  faker.Password(),
-// 		Firstname: faker.FirstName(),
-// 		Lastname:  faker.LastName(),
-// 		Role:      constant.USER,
-// 	}
-// 	newAuthSession := &model.AuthSession{
-// 		UserID: existUser.ID,
-// 	}
-// 	createAuthSessionErr := errors.New("Internal server error")
-
-// 	expected := status.Error(codes.Internal, constant.InternalServerErrorMessage)
-
-// 	controller := gomock.NewController(t.T())
-
-// 	authRepo := mock_auth.NewMockRepository(controller)
-// 	userRepo := user.UserRepositoryMock{}
-// 	tokenService := token.TokenServiceMock{}
-// 	bcryptUtil := utils.BcryptUtilMock{}
-
-// 	userRepo.On("FindByEmail", t.signInRequest.Email, &model.User{}).Return(existUser, nil)
-// 	bcryptUtil.On("CompareHashedPassword", existUser.Password, t.signInRequest.Password).Return(nil)
-// 	authRepo.EXPECT().Create(newAuthSession).Return(createAuthSessionErr)
-
-// 	authSvc := NewService(authRepo, &userRepo, &tokenService, &bcryptUtil)
-// 	actual, err := authSvc.SignIn(t.ctx, t.signInRequest)
-
-// 	st, ok := status.FromError(err)
-// 	assert.Nil(t.T(), actual)
-// 	assert.Equal(t.T(), codes.Internal, st.Code())
-// 	assert.True(t.T(), ok)
-// 	assert.Equal(t.T(), expected.Error(), err.Error())
-// }
-
-// func (t *AuthServiceTest) TestSignInCreateCredentialFailed() {
-// 	existUser := &model.User{
-// 		Base: model.Base{
-// 			ID: uuid.New(),
-// 		},
-// 		Email:     t.signInRequest.Email,
-// 		Password:  faker.Password(),
-// 		Firstname: faker.FirstName(),
-// 		Lastname:  faker.LastName(),
-// 		Role:      constant.USER,
-// 	}
-// 	newAuthSession := &model.AuthSession{
-// 		UserID: existUser.ID,
-// 	}
-// 	createCredentialErr := errors.New("Failed to create credential")
-
-// 	expected := status.Error(codes.Internal, constant.InternalServerErrorMessage)
-
-// 	controller := gomock.NewController(t.T())
-
-// 	authRepo := mock_auth.NewMockRepository(controller)
-// 	userRepo := user.UserRepositoryMock{}
-// 	tokenService := token.TokenServiceMock{}
-// 	bcryptUtil := utils.BcryptUtilMock{}
-
-// 	userRepo.On("FindByEmail", t.signInRequest.Email, &model.User{}).Return(existUser, nil)
-// 	bcryptUtil.On("CompareHashedPassword", existUser.Password, t.signInRequest.Password).Return(nil)
-// 	authRepo.EXPECT().Create(newAuthSession).Return(nil)
-// 	tokenService.On("CreateCredential", existUser.ID.String(), existUser.Role, newAuthSession.ID.String()).Return(nil, createCredentialErr)
-
-// 	authSvc := NewService(authRepo, &userRepo, &tokenService, &bcryptUtil)
-// 	actual, err := authSvc.SignIn(t.ctx, t.signInRequest)
-
-// 	status, ok := status.FromError(err)
-// 	assert.Nil(t.T(), actual)
-// 	assert.Equal(t.T(), codes.Internal, status.Code())
-// 	assert.True(t.T(), ok)
-// 	assert.Equal(t.T(), expected.Error(), err.Error())
-// }
-
-// func (t *AuthServiceTest) TestValidateSuccess() {}
-
-// func (t *AuthServiceTest) TestValidateFailed() {}
-
-// func (t *AuthServiceTest) TestRefreshTokenSuccess() {}
-
-// func (t *AuthServiceTest) TestRefreshTokenNotFound() {}
-
-// func (t *AuthServiceTest) TestRefreshTokenCreateCredentialFailed() {}
-
-// func (t *AuthServiceTest) TestRefreshTokenUpdateTokenFailed() {}
+func (t *ImageServiceTest) TestAssignPetSuccess() {
+	expected := &proto.AssignPetResponse{
+		Success: true,
+	}
+	id1, _ := uuid.Parse(t.assignReq.Ids[0])
+	id2, _ := uuid.Parse(t.assignReq.Ids[1])
+	petId, _ := uuid.Parse(t.assignReq.PetId)
+
+	updateImages := []*model.Image{
+		{
+			PetID: &petId,
+		},
+		{
+			PetID: &petId,
+		},
+	}
+
+	image1 := model.Image{
+		Base: model.Base{
+			ID:        id1,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		PetID:     &id1,
+		ImageUrl:  faker.URL(),
+		ObjectKey: faker.Name(),
+	}
+	image2 := model.Image{
+		Base: model.Base{
+			ID:        id2,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		PetID:     &id1,
+		ImageUrl:  faker.URL(),
+		ObjectKey: faker.Name(),
+	}
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.On("Update", id1.String(), updateImages[0]).Return(&image1, nil)
+	imageRepo.On("Update", id2.String(), updateImages[1]).Return(&image2, nil)
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.AssignPet(context.Background(), t.assignReq)
+
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), expected, actual)
+}
+
+func (t *ImageServiceTest) TestAssignPetNotFound() {
+	expected := status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+
+	id1, _ := uuid.Parse(t.assignReq.Ids[0])
+	id2, _ := uuid.Parse(t.assignReq.Ids[1])
+	petId, _ := uuid.Parse(t.assignReq.PetId)
+
+	updateImages := []*model.Image{
+		{
+			PetID: &petId,
+		},
+		{
+			PetID: &petId,
+		},
+	}
+
+	image2 := model.Image{
+		Base: model.Base{
+			ID:        id2,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		PetID:     &id1,
+		ImageUrl:  faker.URL(),
+		ObjectKey: faker.Name(),
+	}
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.On("Update", id1.String(), updateImages[0]).Return(nil, gorm.ErrRecordNotFound)
+	imageRepo.On("Update", id2.String(), updateImages[1]).Return(&image2, nil)
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.AssignPet(context.Background(), t.assignReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.NotFound, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
+func (t *ImageServiceTest) TestAssignPetInternalErr() {
+	expected := status.Error(codes.Internal, constant.InternalServerErrorMessage)
+
+	id1, _ := uuid.Parse(t.assignReq.Ids[0])
+	id2, _ := uuid.Parse(t.assignReq.Ids[1])
+	petId, _ := uuid.Parse(t.assignReq.PetId)
+
+	updateImages := []*model.Image{
+		{
+			PetID: &petId,
+		},
+		{
+			PetID: &petId,
+		},
+	}
+
+	image2 := model.Image{
+		Base: model.Base{
+			ID:        id2,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		PetID:     &id1,
+		ImageUrl:  faker.URL(),
+		ObjectKey: faker.Name(),
+	}
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.On("Update", id1.String(), updateImages[0]).Return(nil, errors.New("Error updating image in db"))
+	imageRepo.On("Update", id2.String(), updateImages[1]).Return(&image2, nil)
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.AssignPet(context.Background(), t.assignReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.Internal, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
