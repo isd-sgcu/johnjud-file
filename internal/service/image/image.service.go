@@ -41,7 +41,7 @@ func (s *serviceImpl) FindByPetId(_ context.Context, req *proto.FindImageByPetId
 				Str("petId", req.PetId).
 				Msg(err.Error())
 
-			return nil, status.Error(codes.NotFound, constant.PetNotFoundErrorMessage)
+			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
 		}
 
 		log.Error().Err(err).

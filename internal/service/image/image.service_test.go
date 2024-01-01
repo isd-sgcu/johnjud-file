@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 type ImageServiceTest struct {
@@ -124,6 +125,46 @@ func (t *ImageServiceTest) TestFindByPetIdSuccess() {
 
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), expected, actual)
+}
+
+func (t *ImageServiceTest) TestFindByPetIdNotFound() {
+	expected := status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+	var images []*model.Image
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.On("FindByPetId", t.petId.String(), &images).Return(nil, gorm.ErrRecordNotFound)
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.FindByPetId(context.Background(), t.findReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.NotFound, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
+func (t *ImageServiceTest) TestFindByPetIdInternalErr() {
+	expected := status.Error(codes.Internal, constant.InternalServerErrorMessage)
+	var images []*model.Image
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.On("FindByPetId", t.petId.String(), &images).Return(nil, errors.New("Error finding image in db"))
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.FindByPetId(context.Background(), t.findReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.Internal, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
 }
 
 func (t *ImageServiceTest) TestUploadSuccess() {

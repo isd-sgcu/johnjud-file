@@ -3,8 +3,6 @@ package constant
 const InternalServerErrorMessage = "Internal server error"
 const UUIDParseErrorMessage = "Error parsing UUID"
 
-const PetNotFoundErrorMessage = "Pet not found"
-
 const UploadToBucketErrorMessage = "Error uploading to bucket client"
 const DeleteFromBucketErrorMessage = "Error deleting from bucket client"
 
