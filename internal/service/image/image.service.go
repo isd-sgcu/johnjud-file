@@ -140,18 +140,20 @@ func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (
 		return nil, status.Error(codes.Internal, constant.DeleteFromBucketErrorMessage)
 	}
 
+	var image model.Image
+	err = s.repository.FindOne(req.Id, &image)
+	if err != nil {
+		log.Info().
+			Str("service", "image").
+			Str("module", "delete").
+			Str("id", req.Id).
+			Msg("Image hasn't been assign to pet yet, so delete only in bucket")
+
+		return &proto.DeleteImageResponse{Success: true}, nil
+	}
+
 	err = s.repository.Delete(req.Id)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			log.Error().Err(err).
-				Str("service", "image").
-				Str("module", "delete").
-				Str("id", req.Id).
-				Msg(err.Error())
-
-			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
-		}
-
 		log.Error().Err(err).
 			Str("service", "image").
 			Str("module", "delete").
@@ -175,7 +177,17 @@ func DtoToRaw(in *proto.Image) (result *model.Image, err error) {
 
 	petId, err := uuid.Parse(in.PetId)
 	if err != nil {
-		return nil, err
+		return &model.Image{
+			Base: model.Base{
+				ID:        id,
+				CreatedAt: time.Time{},
+				UpdatedAt: time.Time{},
+				DeletedAt: gorm.DeletedAt{},
+			},
+			PetID:     nil,
+			ImageUrl:  in.ImageUrl,
+			ObjectKey: in.ObjectKey,
+		}, nil
 	}
 
 	return &model.Image{
@@ -201,9 +213,18 @@ func RawToDtoList(in *[]*model.Image) []*proto.Image {
 }
 
 func RawToDto(in *model.Image) *proto.Image {
+	var id string
+	var petId string
+	if in.ID != uuid.Nil {
+		id = in.ID.String()
+	}
+	if in.PetID != nil {
+		petId = in.PetID.String()
+	}
+
 	return &proto.Image{
-		Id:        in.ID.String(),
-		PetId:     in.PetID.String(),
+		Id:        id,
+		PetId:     petId,
 		ImageUrl:  in.ImageUrl,
 		ObjectKey: in.ObjectKey,
 	}
