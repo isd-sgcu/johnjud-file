@@ -14,6 +14,10 @@ func NewRepository(db *gorm.DB) image.Repository {
 	return &repositoryImpl{db: db}
 }
 
+func (r *repositoryImpl) FindOne(id string, result *model.Image) error {
+	return r.db.Model(&model.Image{}).First(result, "id = ?", id).Error
+}
+
 func (r *repositoryImpl) FindByPetId(id string, result *[]*model.Image) error {
 	return r.db.Model(&model.Image{}).Find(&result, "pet_id = ?", id).Error
 }
