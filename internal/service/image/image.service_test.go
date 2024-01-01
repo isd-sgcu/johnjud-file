@@ -2,18 +2,22 @@ package image
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/go-faker/faker/v4"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
+	"github.com/isd-sgcu/johnjud-file/constant"
 	"github.com/isd-sgcu/johnjud-file/internal/model"
 	mock_bucket "github.com/isd-sgcu/johnjud-file/mocks/client/bucket"
 	mock_image "github.com/isd-sgcu/johnjud-file/mocks/repository/image"
 	proto "github.com/isd-sgcu/johnjud-go-proto/johnjud/file/image/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type ImageServiceTest struct {
@@ -81,8 +85,8 @@ func (t *ImageServiceTest) TestUploadSuccess() {
 	controller := gomock.NewController(t.T())
 
 	imageRepo := mock_image.NewMockRepository(controller)
-	imageRepo.EXPECT().Create(createImage).Return(nil)
 	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.EXPECT().Create(createImage).Return(nil)
 	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return(t.imageProto.ImageUrl, t.imageProto.ObjectKey, nil)
 
 	imageService := NewService(bucketClient, imageRepo)
@@ -90,6 +94,50 @@ func (t *ImageServiceTest) TestUploadSuccess() {
 
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), expected, actual)
+}
+
+func (t *ImageServiceTest) TestUploadBucketFailed() {
+	expected := status.Error(codes.Internal, constant.UploadToBucketErrorMessage)
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := mock_image.NewMockRepository(controller)
+	bucketClient := mock_bucket.NewMockClient(controller)
+	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return("", "", errors.New("Error uploading to bucket client"))
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.Upload(context.Background(), t.uploadReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.Internal, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
+func (t *ImageServiceTest) TestUploadRepoFailed() {
+	expected := status.Error(codes.Internal, constant.CreateImageErrorMessage)
+	createImage := &model.Image{
+		PetID:     t.image.PetID,
+		ImageUrl:  t.image.ImageUrl,
+		ObjectKey: t.image.ObjectKey,
+	}
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := mock_image.NewMockRepository(controller)
+	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.EXPECT().Create(createImage).Return(errors.New("Error creating image in db"))
+	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return(t.imageProto.ImageUrl, t.imageProto.ObjectKey, nil)
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.Upload(context.Background(), t.uploadReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.Internal, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
 }
 
 // func (t *AuthServiceTest) TestSignupHashPasswordFailed() {
