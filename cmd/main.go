@@ -16,6 +16,7 @@ import (
 	"github.com/isd-sgcu/johnjud-file/database"
 	imageRepo "github.com/isd-sgcu/johnjud-file/internal/repository/image"
 	imageSvc "github.com/isd-sgcu/johnjud-file/internal/service/image"
+	"github.com/isd-sgcu/johnjud-file/internal/utils"
 	"github.com/isd-sgcu/johnjud-file/pkg/client/bucket"
 	imagePb "github.com/isd-sgcu/johnjud-go-proto/johnjud/file/image/v1"
 	"github.com/rs/zerolog/log"
@@ -120,9 +121,10 @@ func main() {
 	awsClient := s3.NewFromConfig(sdkConfig)
 	bucketClient := bucket.NewClient(conf.S3, awsClient)
 
+	randomUtils := utils.NewRandomUtil()
 	imageRepository := imageRepo.NewRepository(db)
 
-	imageService := imageSvc.NewService(bucketClient, imageRepository)
+	imageService := imageSvc.NewService(bucketClient, imageRepository, randomUtils)
 
 	grpc_health_v1.RegisterHealthServer(grpcServer, health.NewServer())
 	imagePb.RegisterImageServiceServer(grpcServer, imageService)

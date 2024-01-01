@@ -13,6 +13,7 @@ import (
 	"github.com/isd-sgcu/johnjud-file/internal/model"
 	mock_bucket "github.com/isd-sgcu/johnjud-file/mocks/client/bucket"
 	mock_image "github.com/isd-sgcu/johnjud-file/mocks/repository/image"
+	mock_random "github.com/isd-sgcu/johnjud-file/mocks/utils"
 	proto "github.com/isd-sgcu/johnjud-go-proto/johnjud/file/image/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -23,18 +24,20 @@ import (
 
 type ImageServiceTest struct {
 	suite.Suite
-	file       []byte
-	id         uuid.UUID
-	petId      uuid.UUID
-	objectKey  string
-	imageUrl   string
-	findReq    *proto.FindImageByPetIdRequest
-	uploadReq  *proto.UploadImageRequest
-	assignReq  *proto.AssignPetRequest
-	deleteReq  *proto.DeleteImageRequest
-	imageProto *proto.Image
-	image      *model.Image
-	images     []*model.Image
+	file                []byte
+	id                  uuid.UUID
+	petId               uuid.UUID
+	objectKey           string
+	imageUrl            string
+	randomString        string
+	objectKeyWithRandom string
+	findReq             *proto.FindImageByPetIdRequest
+	uploadReq           *proto.UploadImageRequest
+	assignReq           *proto.AssignPetRequest
+	deleteReq           *proto.DeleteImageRequest
+	imageProto          *proto.Image
+	image               *model.Image
+	images              []*model.Image
 }
 
 func TestImageService(t *testing.T) {
@@ -47,6 +50,8 @@ func (t *ImageServiceTest) SetupTest() {
 	t.petId = uuid.New()
 	t.objectKey = faker.Name()
 	t.imageUrl = faker.URL()
+	t.randomString = "random"
+	t.objectKeyWithRandom = t.objectKey + "_" + t.randomString
 
 	t.findReq = &proto.FindImageByPetIdRequest{
 		PetId: t.petId.String(),
@@ -127,9 +132,10 @@ func (t *ImageServiceTest) TestFindByPetIdSuccess() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
 	imageRepo.On("FindByPetId", t.petId.String(), &images).Return(&t.images, nil)
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.FindByPetId(context.Background(), t.findReq)
 
 	assert.Nil(t.T(), err)
@@ -144,9 +150,10 @@ func (t *ImageServiceTest) TestFindByPetIdNotFound() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
 	imageRepo.On("FindByPetId", t.petId.String(), &images).Return(nil, gorm.ErrRecordNotFound)
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.FindByPetId(context.Background(), t.findReq)
 
 	status, ok := status.FromError(err)
@@ -164,9 +171,10 @@ func (t *ImageServiceTest) TestFindByPetIdInternalErr() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
 	imageRepo.On("FindByPetId", t.petId.String(), &images).Return(nil, errors.New("Error finding image in db"))
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.FindByPetId(context.Background(), t.findReq)
 
 	status, ok := status.FromError(err)
@@ -182,23 +190,35 @@ func (t *ImageServiceTest) TestUploadSuccess() {
 			Id:        t.imageProto.Id,
 			PetId:     t.imageProto.PetId,
 			ImageUrl:  t.imageProto.ImageUrl,
-			ObjectKey: t.imageProto.ObjectKey,
+			ObjectKey: t.imageProto.ObjectKey + "_" + t.randomString,
 		},
 	}
 	createImage := &model.Image{
 		PetID:     t.image.PetID,
 		ImageUrl:  t.image.ImageUrl,
-		ObjectKey: t.image.ObjectKey,
+		ObjectKey: t.image.ObjectKey + "_" + t.randomString,
+	}
+	createImageReturn := &model.Image{
+		Base: model.Base{
+			ID:        t.id,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		PetID:     &t.petId,
+		ImageUrl:  t.imageUrl,
+		ObjectKey: t.objectKey + "_" + t.randomString,
 	}
 
 	controller := gomock.NewController(t.T())
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
-	imageRepo.On("Create", createImage).Return(t.image, nil)
-	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return(t.imageProto.ImageUrl, t.imageProto.ObjectKey, nil)
+	randomUtils := &mock_random.RandomUtilMock{}
+	randomUtils.On("GenerateRandomString", 10).Return(t.randomString, nil)
+	imageRepo.On("Create", createImage).Return(createImageReturn, nil)
+	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.objectKeyWithRandom).Return(t.imageProto.ImageUrl, t.objectKeyWithRandom, nil)
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.Upload(context.Background(), t.uploadReq)
 
 	assert.Nil(t.T(), err)
@@ -210,7 +230,7 @@ func (t *ImageServiceTest) TestUploadSuccessNoPetID() {
 		Image: &proto.Image{
 			Id:        t.imageProto.Id,
 			ImageUrl:  t.imageProto.ImageUrl,
-			ObjectKey: t.imageProto.ObjectKey,
+			ObjectKey: t.imageProto.ObjectKey + "_" + t.randomString,
 		},
 	}
 	uploadInput := &proto.UploadImageRequest{
@@ -220,7 +240,7 @@ func (t *ImageServiceTest) TestUploadSuccessNoPetID() {
 
 	createImage := &model.Image{
 		ImageUrl:  t.image.ImageUrl,
-		ObjectKey: t.image.ObjectKey,
+		ObjectKey: t.image.ObjectKey + "_" + t.randomString,
 	}
 	createImageReturn := &model.Image{
 		Base: model.Base{
@@ -229,17 +249,19 @@ func (t *ImageServiceTest) TestUploadSuccessNoPetID() {
 			UpdatedAt: time.Now(),
 		},
 		ImageUrl:  t.imageUrl,
-		ObjectKey: t.objectKey,
+		ObjectKey: t.objectKey + "_" + t.randomString,
 	}
 
 	controller := gomock.NewController(t.T())
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
+	randomUtils.On("GenerateRandomString", 10).Return(t.randomString, nil)
 	imageRepo.On("Create", createImage).Return(createImageReturn, nil)
-	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return(t.imageProto.ImageUrl, t.imageProto.ObjectKey, nil)
+	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.objectKeyWithRandom).Return(t.imageProto.ImageUrl, t.objectKeyWithRandom, nil)
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.Upload(context.Background(), uploadInput)
 
 	assert.Nil(t.T(), err)
@@ -253,9 +275,11 @@ func (t *ImageServiceTest) TestUploadBucketFailed() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
-	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return("", "", errors.New("Error uploading to bucket client"))
+	randomUtils := &mock_random.RandomUtilMock{}
+	randomUtils.On("GenerateRandomString", 10).Return(t.randomString, nil)
+	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.objectKeyWithRandom).Return("", "", errors.New("Error uploading to bucket client"))
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.Upload(context.Background(), t.uploadReq)
 
 	status, ok := status.FromError(err)
@@ -270,17 +294,19 @@ func (t *ImageServiceTest) TestUploadRepoFailed() {
 	createImage := &model.Image{
 		PetID:     t.image.PetID,
 		ImageUrl:  t.image.ImageUrl,
-		ObjectKey: t.image.ObjectKey,
+		ObjectKey: t.image.ObjectKey + "_" + t.randomString,
 	}
 
 	controller := gomock.NewController(t.T())
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
+	randomUtils.On("GenerateRandomString", 10).Return(t.randomString, nil)
 	imageRepo.On("Create", createImage).Return(nil, errors.New(constant.CreateImageErrorMessage))
-	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return(t.imageProto.ImageUrl, t.imageProto.ObjectKey, nil)
+	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.objectKeyWithRandom).Return(t.imageProto.ImageUrl, t.objectKeyWithRandom, nil)
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.Upload(context.Background(), t.uploadReq)
 
 	status, ok := status.FromError(err)
@@ -332,10 +358,11 @@ func (t *ImageServiceTest) TestAssignPetSuccess() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
 	imageRepo.On("Update", id1.String(), updateImages[0]).Return(&image1, nil)
 	imageRepo.On("Update", id2.String(), updateImages[1]).Return(&image2, nil)
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.AssignPet(context.Background(), t.assignReq)
 
 	assert.Nil(t.T(), err)
@@ -373,10 +400,11 @@ func (t *ImageServiceTest) TestAssignPetNotFound() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
 	imageRepo.On("Update", id1.String(), updateImages[0]).Return(nil, gorm.ErrRecordNotFound)
 	imageRepo.On("Update", id2.String(), updateImages[1]).Return(&image2, nil)
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.AssignPet(context.Background(), t.assignReq)
 
 	status, ok := status.FromError(err)
@@ -417,10 +445,11 @@ func (t *ImageServiceTest) TestAssignPetInternalErr() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
 	imageRepo.On("Update", id1.String(), updateImages[0]).Return(nil, errors.New("Error updating image in db"))
 	imageRepo.On("Update", id2.String(), updateImages[1]).Return(&image2, nil)
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.AssignPet(context.Background(), t.assignReq)
 
 	status, ok := status.FromError(err)
@@ -440,11 +469,12 @@ func (t *ImageServiceTest) TestDeleteSuccess() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
 	imageRepo.On("FindOne", t.image.ID.String(), &image).Return(t.image, nil)
 	imageRepo.On("Delete", t.image.ID.String()).Return(nil)
 	bucketClient.EXPECT().Delete(t.image.ObjectKey).Return(nil)
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.Delete(context.Background(), t.deleteReq)
 
 	assert.Nil(t.T(), err)
@@ -461,10 +491,11 @@ func (t *ImageServiceTest) TestDeleteNotInDB() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
 	imageRepo.On("FindOne", t.image.ID.String(), &image).Return(nil, gorm.ErrRecordNotFound)
 	bucketClient.EXPECT().Delete(t.image.ObjectKey).Return(nil)
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.Delete(context.Background(), t.deleteReq)
 
 	assert.Nil(t.T(), err)
@@ -479,11 +510,12 @@ func (t *ImageServiceTest) TestDeleteBucketFailed() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
 	imageRepo.On("FindOne", t.image.ID.String(), &image).Return(t.image, nil)
 	imageRepo.On("Delete", t.image.ID.String()).Return(nil)
 	bucketClient.EXPECT().Delete(t.image.ObjectKey).Return(errors.New("Error deleting from bucket client"))
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.Delete(context.Background(), t.deleteReq)
 
 	status, ok := status.FromError(err)
@@ -501,11 +533,12 @@ func (t *ImageServiceTest) TestDeleteInternalErr() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
 	imageRepo.On("FindOne", t.image.ID.String(), &image).Return(nil, nil)
 	imageRepo.On("Delete", t.image.ID.String()).Return(errors.New(constant.DeleteImageErrorMessage))
 	bucketClient.EXPECT().Delete(t.image.ObjectKey).Return(nil)
 
-	imageService := NewService(bucketClient, imageRepo)
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.Delete(context.Background(), t.deleteReq)
 
 	status, ok := status.FromError(err)

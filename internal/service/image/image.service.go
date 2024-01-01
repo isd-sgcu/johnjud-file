@@ -2,13 +2,12 @@ package image
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/isd-sgcu/johnjud-file/constant"
 	"github.com/isd-sgcu/johnjud-file/internal/model"
+	"github.com/isd-sgcu/johnjud-file/internal/utils"
 	"github.com/isd-sgcu/johnjud-file/pkg/client/bucket"
 	"github.com/isd-sgcu/johnjud-file/pkg/repository/image"
 	proto "github.com/isd-sgcu/johnjud-go-proto/johnjud/file/image/v1"
@@ -22,12 +21,14 @@ type serviceImpl struct {
 	proto.UnimplementedImageServiceServer
 	client     bucket.Client
 	repository image.Repository
+	random     utils.RandomUtil
 }
 
-func NewService(client bucket.Client, repository image.Repository) proto.ImageServiceServer {
+func NewService(client bucket.Client, repository image.Repository, random utils.RandomUtil) proto.ImageServiceServer {
 	return &serviceImpl{
 		client:     client,
 		repository: repository,
+		random:     random,
 	}
 }
 
@@ -59,7 +60,7 @@ func (s *serviceImpl) FindByPetId(_ context.Context, req *proto.FindImageByPetId
 }
 
 func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (res *proto.UploadImageResponse, err error) {
-	randomString, err := generateRandomString(10)
+	randomString, err := s.random.GenerateRandomString(10)
 	if err != nil {
 		log.Error().Err(err).
 			Str("service", "image").
@@ -68,8 +69,7 @@ func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (
 			Msg(err.Error())
 		return nil, status.Error(codes.Internal, "Error while generating random string")
 	}
-	req.Filename = req.Filename + "_" + randomString
-	imageUrl, objectKey, err := s.client.Upload(req.Data, req.Filename)
+	imageUrl, objectKey, err := s.client.Upload(req.Data, req.Filename+"_"+randomString)
 	if err != nil {
 		log.Error().Err(err).
 			Str("service", "image").
@@ -240,18 +240,4 @@ func RawToDto(in *model.Image) *proto.Image {
 		ImageUrl:  in.ImageUrl,
 		ObjectKey: in.ObjectKey,
 	}
-}
-
-func generateRandomString(length int) (string, error) {
-	numBytes := (length * 6) / 8
-
-	randomBytes := make([]byte, numBytes)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		return "", err
-	}
-
-	randomString := base64.URLEncoding.EncodeToString(randomBytes)
-
-	return randomString[:length], nil
 }
