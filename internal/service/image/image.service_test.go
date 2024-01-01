@@ -22,10 +22,13 @@ import (
 
 type ImageServiceTest struct {
 	suite.Suite
+	petId      uuid.UUID
+	findReq    *proto.FindImageByPetIdRequest
 	uploadReq  *proto.UploadImageRequest
 	deleteReq  *proto.DeleteImageRequest
 	imageProto *proto.Image
 	image      *model.Image
+	images     []*model.Image
 }
 
 func TestImageService(t *testing.T) {
@@ -35,14 +38,17 @@ func TestImageService(t *testing.T) {
 func (t *ImageServiceTest) SetupTest() {
 	file := []byte("test")
 	id := uuid.New()
-	petId := uuid.New()
+	t.petId = uuid.New()
 	objectKey := faker.Name()
 	imageUrl := faker.URL()
 
+	t.findReq = &proto.FindImageByPetIdRequest{
+		PetId: t.petId.String(),
+	}
 	t.uploadReq = &proto.UploadImageRequest{
 		Filename: objectKey,
 		Data:     file,
-		PetId:    petId.String(),
+		PetId:    t.petId.String(),
 	}
 	t.deleteReq = &proto.DeleteImageRequest{
 		Id:        id.String(),
@@ -50,7 +56,7 @@ func (t *ImageServiceTest) SetupTest() {
 	}
 	t.imageProto = &proto.Image{
 		Id:        id.String(),
-		PetId:     petId.String(),
+		PetId:     t.petId.String(),
 		ImageUrl:  imageUrl,
 		ObjectKey: objectKey,
 	}
@@ -60,17 +66,70 @@ func (t *ImageServiceTest) SetupTest() {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		PetID:     &petId,
+		PetID:     &t.petId,
 		ImageUrl:  imageUrl,
 		ObjectKey: objectKey,
 	}
+	t.images = []*model.Image{
+		{
+			Base: model.Base{
+				ID:        uuid.New(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			PetID:     &t.petId,
+			ImageUrl:  faker.URL(),
+			ObjectKey: faker.Name(),
+		},
+		{
+			Base: model.Base{
+				ID:        uuid.New(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			PetID:     &t.petId,
+			ImageUrl:  faker.URL(),
+			ObjectKey: faker.Name(),
+		},
+	}
+}
+
+func (t *ImageServiceTest) TestFindByPetIdSuccess() {
+	expected := &proto.FindImageByPetIdResponse{
+		Images: []*proto.Image{
+			{
+				Id:        t.images[0].ID.String(),
+				PetId:     t.images[0].PetID.String(),
+				ImageUrl:  t.images[0].ImageUrl,
+				ObjectKey: t.images[0].ObjectKey,
+			},
+			{
+				Id:        t.images[1].ID.String(),
+				PetId:     t.images[1].PetID.String(),
+				ImageUrl:  t.images[1].ImageUrl,
+				ObjectKey: t.images[1].ObjectKey,
+			},
+		},
+	}
+	var images []*model.Image
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.On("FindByPetId", t.petId.String(), &images).Return(&t.images, nil)
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.FindByPetId(context.Background(), t.findReq)
+
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), expected, actual)
 }
 
 func (t *ImageServiceTest) TestUploadSuccess() {
-	var uuid uuid.UUID
 	expected := &proto.UploadImageResponse{
 		Image: &proto.Image{
-			Id:        uuid.String(),
+			Id:        t.imageProto.Id,
 			PetId:     t.imageProto.PetId,
 			ImageUrl:  t.imageProto.ImageUrl,
 			ObjectKey: t.imageProto.ObjectKey,
@@ -84,9 +143,9 @@ func (t *ImageServiceTest) TestUploadSuccess() {
 
 	controller := gomock.NewController(t.T())
 
-	imageRepo := mock_image.NewMockRepository(controller)
+	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
-	imageRepo.EXPECT().Create(createImage).Return(nil)
+	imageRepo.On("Create", createImage).Return(t.image, nil)
 	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return(t.imageProto.ImageUrl, t.imageProto.ObjectKey, nil)
 
 	imageService := NewService(bucketClient, imageRepo)
@@ -101,7 +160,7 @@ func (t *ImageServiceTest) TestUploadBucketFailed() {
 
 	controller := gomock.NewController(t.T())
 
-	imageRepo := mock_image.NewMockRepository(controller)
+	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
 	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return("", "", errors.New("Error uploading to bucket client"))
 
@@ -125,9 +184,9 @@ func (t *ImageServiceTest) TestUploadRepoFailed() {
 
 	controller := gomock.NewController(t.T())
 
-	imageRepo := mock_image.NewMockRepository(controller)
+	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
-	imageRepo.EXPECT().Create(createImage).Return(errors.New("Error creating image in db"))
+	imageRepo.On("Create", createImage).Return(nil, errors.New("Error creating image in db"))
 	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return(t.imageProto.ImageUrl, t.imageProto.ObjectKey, nil)
 
 	imageService := NewService(bucketClient, imageRepo)
