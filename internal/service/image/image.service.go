@@ -22,7 +22,7 @@ type serviceImpl struct {
 	repository image.Repository
 }
 
-func NewService(client bucket.Client, repository image.Repository) *serviceImpl {
+func NewService(client bucket.Client, repository image.Repository) proto.ImageServiceServer {
 	return &serviceImpl{
 		client:     client,
 		repository: repository,

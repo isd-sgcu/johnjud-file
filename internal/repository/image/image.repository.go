@@ -2,6 +2,7 @@ package image
 
 import (
 	"github.com/isd-sgcu/johnjud-file/internal/model"
+	"github.com/isd-sgcu/johnjud-file/pkg/repository/image"
 	"gorm.io/gorm"
 )
 
@@ -9,7 +10,7 @@ type repositoryImpl struct {
 	db *gorm.DB
 }
 
-func NewRepository(db *gorm.DB) *repositoryImpl {
+func NewRepository(db *gorm.DB) image.Repository {
 	return &repositoryImpl{db: db}
 }
 
