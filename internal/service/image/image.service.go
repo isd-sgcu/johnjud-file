@@ -152,18 +152,6 @@ func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (
 		return nil, status.Error(codes.Internal, constant.DeleteFromBucketErrorMessage)
 	}
 
-	var image model.Image
-	err = s.repository.FindOne(req.Id, &image)
-	if err != nil {
-		log.Info().
-			Str("service", "image").
-			Str("module", "delete").
-			Str("id", req.Id).
-			Msg("Image hasn't been assign to pet yet, so delete only in bucket")
-
-		return &proto.DeleteImageResponse{Success: true}, nil
-	}
-
 	err = s.repository.Delete(req.Id)
 	if err != nil {
 		log.Error().Err(err).
