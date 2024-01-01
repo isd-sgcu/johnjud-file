@@ -232,7 +232,7 @@ func (t *ImageServiceTest) TestUploadRepoFailed() {
 
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
-	imageRepo.On("Create", createImage).Return(nil, errors.New("Error creating image in db"))
+	imageRepo.On("Create", createImage).Return(nil, errors.New(constant.CreateImageErrorMessage))
 	bucketClient.EXPECT().Upload(t.uploadReq.Data, t.uploadReq.Filename).Return(t.imageProto.ImageUrl, t.imageProto.ObjectKey, nil)
 
 	imageService := NewService(bucketClient, imageRepo)
@@ -377,6 +377,85 @@ func (t *ImageServiceTest) TestAssignPetInternalErr() {
 
 	imageService := NewService(bucketClient, imageRepo)
 	actual, err := imageService.AssignPet(context.Background(), t.assignReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.Internal, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
+func (t *ImageServiceTest) TestDeleteSuccess() {
+	expected := &proto.DeleteImageResponse{
+		Success: true,
+	}
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.On("Delete", t.image.ID.String()).Return(nil)
+	bucketClient.EXPECT().Delete(t.image.ObjectKey).Return(nil)
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.Delete(context.Background(), t.deleteReq)
+
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), expected, actual)
+}
+
+func (t *ImageServiceTest) TestDeleteBucketFailed() {
+	expected := status.Error(codes.Internal, constant.DeleteFromBucketErrorMessage)
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.On("Delete", t.image.ID.String()).Return(nil)
+	bucketClient.EXPECT().Delete(t.image.ObjectKey).Return(errors.New("Error deleting from bucket client"))
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.Delete(context.Background(), t.deleteReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.Internal, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
+func (t *ImageServiceTest) TestDeleteNotFound() {
+	expected := status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.On("Delete", t.image.ID.String()).Return(gorm.ErrRecordNotFound)
+	bucketClient.EXPECT().Delete(t.image.ObjectKey).Return(nil)
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.Delete(context.Background(), t.deleteReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.NotFound, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
+func (t *ImageServiceTest) TestDeleteNotInternalErr() {
+	expected := status.Error(codes.Internal, constant.DeleteImageErrorMessage)
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	imageRepo.On("Delete", t.image.ID.String()).Return(errors.New(constant.DeleteImageErrorMessage))
+	bucketClient.EXPECT().Delete(t.image.ObjectKey).Return(nil)
+
+	imageService := NewService(bucketClient, imageRepo)
+	actual, err := imageService.Delete(context.Background(), t.deleteReq)
 
 	status, ok := status.FromError(err)
 	assert.True(t.T(), ok)
