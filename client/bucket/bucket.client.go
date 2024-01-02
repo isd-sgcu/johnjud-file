@@ -3,8 +3,6 @@ package bucket
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -50,9 +48,8 @@ func (c *Client) Upload(file []byte, objectKey string) (string, string, error) {
 
 		return "", "", errors.Wrap(err, "Error while uploading the object")
 	}
-	urlObjectKey := strings.Replace(objectKey, " ", "+", -1)
 
-	return fmt.Sprintf("https://%v.s3.%v.amazonaws.com/%v", c.conf.BucketName, c.conf.Region, urlObjectKey), *uploadOutput.Key, nil
+	return uploadOutput.Location, *uploadOutput.Key, nil
 }
 
 func (c *Client) Delete(objectKey string) error {
