@@ -66,8 +66,7 @@ func (t *ImageServiceTest) SetupTest() {
 		PetId: t.petId.String(),
 	}
 	t.deleteReq = &proto.DeleteImageRequest{
-		Id:        t.id.String(),
-		ObjectKey: t.objectKey,
+		Id: t.id.String(),
 	}
 	t.imageProto = &proto.Image{
 		Id:        t.id.String(),
@@ -496,6 +495,7 @@ func (t *ImageServiceTest) TestDeleteSuccess() {
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
 	randomUtils := &mock_random.RandomUtilMock{}
+	imageRepo.On("FindOne", t.image.ID.String(), &model.Image{}).Return(t.image, nil)
 	imageRepo.On("Delete", t.image.ID.String()).Return(nil)
 	bucketClient.EXPECT().Delete(t.image.ObjectKey).Return(nil)
 
@@ -514,6 +514,7 @@ func (t *ImageServiceTest) TestDeleteBucketFailed() {
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
 	randomUtils := &mock_random.RandomUtilMock{}
+	imageRepo.On("FindOne", t.image.ID.String(), &model.Image{}).Return(t.image, nil)
 	imageRepo.On("Delete", t.image.ID.String()).Return(nil)
 	bucketClient.EXPECT().Delete(t.image.ObjectKey).Return(errors.New("Error deleting from bucket client"))
 
@@ -527,6 +528,26 @@ func (t *ImageServiceTest) TestDeleteBucketFailed() {
 	assert.Equal(t.T(), expected.Error(), err.Error())
 }
 
+func (t *ImageServiceTest) TestDeleteNotFound() {
+	expected := status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
+	imageRepo.On("FindOne", t.image.ID.String(), &model.Image{}).Return(nil, gorm.ErrRecordNotFound)
+
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
+	actual, err := imageService.Delete(context.Background(), t.deleteReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.NotFound, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
 func (t *ImageServiceTest) TestDeleteInternalErr() {
 	expected := status.Error(codes.Internal, constant.DeleteImageErrorMessage)
 
@@ -535,6 +556,7 @@ func (t *ImageServiceTest) TestDeleteInternalErr() {
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
 	randomUtils := &mock_random.RandomUtilMock{}
+	imageRepo.On("FindOne", t.image.ID.String(), &model.Image{}).Return(t.image, nil)
 	imageRepo.On("Delete", t.image.ID.String()).Return(errors.New(constant.DeleteImageErrorMessage))
 	bucketClient.EXPECT().Delete(t.image.ObjectKey).Return(nil)
 

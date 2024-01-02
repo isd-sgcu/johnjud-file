@@ -142,7 +142,30 @@ func (s *serviceImpl) AssignPet(_ context.Context, req *proto.AssignPetRequest) 
 }
 
 func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (res *proto.DeleteImageResponse, err error) {
-	err = s.client.Delete(req.ObjectKey)
+	var image model.Image
+
+	err = s.repository.FindOne(req.Id, &image)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Error().Err(err).
+				Str("service", "image").
+				Str("module", "delete").
+				Str("id", req.Id).
+				Msg(constant.ImageNotFoundErrorMessage)
+
+			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+		}
+
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "delete").
+			Str("id", req.Id).
+			Msg(constant.InternalServerErrorMessage)
+
+		return nil, status.Error(codes.Internal, constant.InternalServerErrorMessage)
+	}
+
+	err = s.client.Delete(image.ObjectKey)
 	if err != nil {
 		log.Error().Err(err).
 			Str("service", "image").
