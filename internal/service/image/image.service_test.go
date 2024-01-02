@@ -267,6 +267,30 @@ func (t *ImageServiceTest) TestUploadSuccessNoPetID() {
 	assert.Equal(t.T(), expected, actual)
 }
 
+func (t *ImageServiceTest) TestUploadPetIdNotUUID() {
+	expected := status.Error(codes.InvalidArgument, constant.PetIdNotUUIDErrorMessage)
+	uploadInput := &proto.UploadImageRequest{
+		Filename: t.uploadReq.Filename,
+		Data:     t.uploadReq.Data,
+		PetId:    "not uuid",
+	}
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
+
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
+	actual, err := imageService.Upload(context.Background(), uploadInput)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.InvalidArgument, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
 func (t *ImageServiceTest) TestUploadBucketFailed() {
 	expected := status.Error(codes.Internal, constant.UploadToBucketErrorMessage)
 

@@ -60,6 +60,19 @@ func (s *serviceImpl) FindByPetId(_ context.Context, req *proto.FindImageByPetId
 }
 
 func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (res *proto.UploadImageResponse, err error) {
+	if req.PetId != "" {
+		_, err = uuid.Parse(req.PetId)
+		if err != nil {
+			log.Error().Err(err).
+				Str("service", "image").
+				Str("module", "upload").
+				Str("petId", req.PetId).
+				Msg(constant.PetIdNotUUIDErrorMessage)
+
+			return nil, status.Error(codes.InvalidArgument, constant.PetIdNotUUIDErrorMessage)
+		}
+	}
+
 	randomString, err := s.random.GenerateRandomString(10)
 	if err != nil {
 		log.Error().Err(err).
