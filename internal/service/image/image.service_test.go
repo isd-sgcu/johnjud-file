@@ -339,7 +339,7 @@ func (t *ImageServiceTest) TestAssignPetSuccess() {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		PetID:     &id1,
+		PetID:     nil,
 		ImageUrl:  faker.URL(),
 		ObjectKey: faker.Name(),
 	}
@@ -349,7 +349,7 @@ func (t *ImageServiceTest) TestAssignPetSuccess() {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		PetID:     &id1,
+		PetID:     nil,
 		ImageUrl:  faker.URL(),
 		ObjectKey: faker.Name(),
 	}
@@ -391,7 +391,7 @@ func (t *ImageServiceTest) TestAssignPetNotFound() {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		PetID:     &id1,
+		PetID:     nil,
 		ImageUrl:  faker.URL(),
 		ObjectKey: faker.Name(),
 	}
@@ -411,6 +411,33 @@ func (t *ImageServiceTest) TestAssignPetNotFound() {
 	assert.True(t.T(), ok)
 	assert.Nil(t.T(), actual)
 	assert.Equal(t.T(), codes.NotFound, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
+func (t *ImageServiceTest) TestAssignPetPrimaryKeyErr() {
+	expected := status.Error(codes.InvalidArgument, constant.PrimaryKeyRequiredErrorMessage)
+
+	id1, _ := uuid.Parse(t.assignReq.Ids[0])
+	id2, _ := uuid.Parse(t.assignReq.Ids[1])
+
+	assignPetInput := &proto.AssignPetRequest{
+		Ids:   []string{id1.String(), id2.String()},
+		PetId: "",
+	}
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
+
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
+	actual, err := imageService.AssignPet(context.Background(), assignPetInput)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.InvalidArgument, status.Code())
 	assert.Equal(t.T(), expected.Error(), err.Error())
 }
 
@@ -436,7 +463,7 @@ func (t *ImageServiceTest) TestAssignPetInternalErr() {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		PetID:     &id1,
+		PetID:     nil,
 		ImageUrl:  faker.URL(),
 		ObjectKey: faker.Name(),
 	}

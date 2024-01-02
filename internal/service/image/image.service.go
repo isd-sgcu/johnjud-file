@@ -107,26 +107,27 @@ func (s *serviceImpl) AssignPet(_ context.Context, req *proto.AssignPetRequest) 
 			Str("service", "image").
 			Str("module", "assign pet").
 			Str("petId", req.PetId).
-			Msg(constant.UUIDParseErrorMessage)
+			Msg(constant.PrimaryKeyRequiredErrorMessage)
 
-		return nil, status.Error(codes.Internal, constant.UUIDParseErrorMessage)
+		return nil, status.Error(codes.InvalidArgument, constant.PrimaryKeyRequiredErrorMessage)
 	}
 
 	for _, id := range req.Ids {
 		err = s.repository.Update(id, &model.Image{
 			PetID: &petId,
 		})
-		if err != nil {
-			if err == gorm.ErrRecordNotFound {
-				log.Error().Err(err).
-					Str("service", "image").
-					Str("module", "assign pet").
-					Str("petId", req.PetId).
-					Msg(constant.ImageNotFoundErrorMessage)
+		switch err {
+		case nil:
+			continue
+		case gorm.ErrRecordNotFound:
+			log.Error().Err(err).
+				Str("service", "image").
+				Str("module", "assign pet").
+				Str("petId", req.PetId).
+				Msg(constant.ImageNotFoundErrorMessage)
 
-				return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
-			}
-
+			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+		default:
 			log.Error().Err(err).
 				Str("service", "image").
 				Str("module", "assign pet").
