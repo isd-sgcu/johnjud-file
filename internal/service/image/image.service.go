@@ -37,21 +37,14 @@ func (s *serviceImpl) FindByPetId(_ context.Context, req *proto.FindImageByPetId
 
 	err = s.repository.FindByPetId(req.PetId, &images)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			log.Error().Err(err).
-				Str("service", "image").
-				Str("module", "find by petId").
-				Str("petId", req.PetId).
-				Msg(constant.ImageNotFoundErrorMessage)
-
-			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
-		}
-
 		log.Error().Err(err).
 			Str("service", "image").
 			Str("module", "find by petId").
 			Str("petId", req.PetId).
-			Msg(constant.InternalServerErrorMessage)
+			Msg("Error finding image by pet id from repo")
+		if err == gorm.ErrRecordNotFound {
+			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+		}
 
 		return nil, status.Error(codes.Internal, constant.InternalServerErrorMessage)
 	}
@@ -82,6 +75,7 @@ func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (
 			Msg("Error while generating random string")
 		return nil, status.Error(codes.Internal, "Error while generating random string")
 	}
+
 	imageUrl, objectKey, err := s.client.Upload(req.Data, req.Filename+"_"+randomString)
 	if err != nil {
 		log.Error().Err(err).
@@ -129,24 +123,19 @@ func (s *serviceImpl) AssignPet(_ context.Context, req *proto.AssignPetRequest) 
 		err = s.repository.Update(id, &model.Image{
 			PetID: &petId,
 		})
-		switch err {
-		case nil:
+		if err == nil {
 			continue
-		case gorm.ErrRecordNotFound:
-			log.Error().Err(err).
-				Str("service", "image").
-				Str("module", "assign pet").
-				Str("petId", req.PetId).
-				Msg(constant.ImageNotFoundErrorMessage)
+		}
 
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "assign pet").
+			Str("petId", req.PetId).
+			Msg("Error updating image in repo")
+		switch err {
+		case gorm.ErrRecordNotFound:
 			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
 		default:
-			log.Error().Err(err).
-				Str("service", "image").
-				Str("module", "assign pet").
-				Str("petId", req.PetId).
-				Msg(constant.InternalServerErrorMessage)
-
 			return nil, status.Error(codes.Internal, constant.InternalServerErrorMessage)
 		}
 	}
@@ -159,21 +148,14 @@ func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (
 
 	err = s.repository.FindOne(req.Id, &image)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			log.Error().Err(err).
-				Str("service", "image").
-				Str("module", "delete").
-				Str("id", req.Id).
-				Msg(constant.ImageNotFoundErrorMessage)
-
-			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
-		}
-
 		log.Error().Err(err).
 			Str("service", "image").
 			Str("module", "delete").
 			Str("id", req.Id).
-			Msg(constant.InternalServerErrorMessage)
+			Msg("Error finding image from repo")
+		if err == gorm.ErrRecordNotFound {
+			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+		}
 
 		return nil, status.Error(codes.Internal, constant.InternalServerErrorMessage)
 	}
