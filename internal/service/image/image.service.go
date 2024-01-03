@@ -2,6 +2,7 @@ package image
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -132,6 +133,10 @@ func (s *serviceImpl) AssignPet(_ context.Context, req *proto.AssignPetRequest) 
 			Str("module", "assign pet").
 			Str("petId", req.PetId).
 			Msg("Error updating image in repo")
+
+		if strings.Contains(err.Error(), gorm.ErrForeignKeyViolated.Error()) {
+			return nil, status.Error(codes.NotFound, constant.PetIdNotFoundErrorMessage)
+		}
 		switch err {
 		case gorm.ErrRecordNotFound:
 			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)

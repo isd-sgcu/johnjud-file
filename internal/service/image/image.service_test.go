@@ -393,7 +393,7 @@ func (t *ImageServiceTest) TestAssignPetSuccess() {
 }
 
 func (t *ImageServiceTest) TestAssignPetNotFound() {
-	expected := status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+	expected := status.Error(codes.NotFound, constant.PetIdNotFoundErrorMessage)
 
 	id1, _ := uuid.Parse(t.assignReq.Ids[0])
 	id2, _ := uuid.Parse(t.assignReq.Ids[1])
@@ -424,7 +424,7 @@ func (t *ImageServiceTest) TestAssignPetNotFound() {
 	imageRepo := &mock_image.ImageRepositoryMock{}
 	bucketClient := mock_bucket.NewMockClient(controller)
 	randomUtils := &mock_random.RandomUtilMock{}
-	imageRepo.On("Update", id1.String(), updateImages[0]).Return(nil, gorm.ErrRecordNotFound)
+	imageRepo.On("Update", id1.String(), updateImages[0]).Return(nil, gorm.ErrForeignKeyViolated)
 	imageRepo.On("Update", id2.String(), updateImages[1]).Return(&image2, nil)
 
 	imageService := NewService(bucketClient, imageRepo, randomUtils)
