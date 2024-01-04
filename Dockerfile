@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN go build -o server ./src/.
+RUN go build -o server ./cmd/main.go
 
 # Adding the grpc_health_probe
 RUN GRPC_HEALTH_PROBE_VERSION=v0.3.1 && \

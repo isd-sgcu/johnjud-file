@@ -1,4 +1,4 @@
-package config
+package cfgldr
 
 import (
 	"github.com/pkg/errors"
@@ -14,6 +14,11 @@ type Database struct {
 	SSL      string `mapstructure:"ssl"`
 }
 
+type S3 struct {
+	BucketName string `mapstructure:"bucket_name"`
+	Region     string `mapstructure:"region"`
+}
+
 type App struct {
 	Port  int  `mapstructure:"port"`
 	Debug bool `mapstructure:"debug"`
@@ -22,6 +27,7 @@ type App struct {
 type Config struct {
 	App      App      `mapstructure:"app"`
 	Database Database `mapstructure:"database"`
+	S3       S3       `mapstructure:"s3"`
 }
 
 func LoadConfig() (config *Config, err error) {

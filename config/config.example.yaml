@@ -8,3 +8,7 @@ database:
   name: johnjud_db
   username: root
   password: root
+
+s3:
+  bucket_name: <bucket name>
+  region: <region>
