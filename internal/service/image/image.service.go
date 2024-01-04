@@ -2,10 +2,13 @@ package image
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/isd-sgcu/johnjud-file/constant"
 	"github.com/isd-sgcu/johnjud-file/internal/model"
+	"github.com/isd-sgcu/johnjud-file/internal/utils"
 	"github.com/isd-sgcu/johnjud-file/pkg/client/bucket"
 	"github.com/isd-sgcu/johnjud-file/pkg/repository/image"
 	proto "github.com/isd-sgcu/johnjud-go-proto/johnjud/file/image/v1"
@@ -19,12 +22,14 @@ type serviceImpl struct {
 	proto.UnimplementedImageServiceServer
 	client     bucket.Client
 	repository image.Repository
+	random     utils.RandomUtil
 }
 
-func NewService(client bucket.Client, repository image.Repository) *serviceImpl {
+func NewService(client bucket.Client, repository image.Repository, random utils.RandomUtil) proto.ImageServiceServer {
 	return &serviceImpl{
 		client:     client,
 		repository: repository,
+		random:     random,
 	}
 }
 
@@ -34,33 +39,152 @@ func (s *serviceImpl) FindByPetId(_ context.Context, req *proto.FindImageByPetId
 	err = s.repository.FindByPetId(req.PetId, &images)
 	if err != nil {
 		log.Error().Err(err).
-			Str("service", "pet").
+			Str("service", "image").
 			Str("module", "find by petId").
 			Str("petId", req.PetId).
-			Msg("Not found")
+			Msg("Error finding image by pet id from repo")
+		if err == gorm.ErrRecordNotFound {
+			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+		}
 
-		return nil, status.Error(codes.NotFound, err.Error())
+		return nil, status.Error(codes.Internal, constant.InternalServerErrorMessage)
 	}
 
 	return &proto.FindImageByPetIdResponse{Images: RawToDtoList(&images)}, nil
 }
 
 func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (res *proto.UploadImageResponse, err error) {
-	// raw, _ := DtoToRaw(req)
+	if req.PetId != "" {
+		_, err = uuid.Parse(req.PetId)
+		if err != nil {
+			log.Error().Err(err).
+				Str("service", "image").
+				Str("module", "upload").
+				Str("petId", req.PetId).
+				Msg(constant.PetIdNotUUIDErrorMessage)
 
-	// err = s.repository.Create(raw)
-	// if err != nil {
-	// 	return nil, status.Error(codes.Internal, "failed to create like")
-	// }
+			return nil, status.Error(codes.InvalidArgument, constant.PetIdNotUUIDErrorMessage)
+		}
+	}
 
-	// return &proto.UploadImageResponse{Image: RawToDto(raw)}, nil
-	return nil, nil
+	randomString, err := s.random.GenerateRandomString(10)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "upload").
+			Str("petId", req.PetId).
+			Msg("Error while generating random string")
+		return nil, status.Error(codes.Internal, "Error while generating random string")
+	}
+
+	imageUrl, objectKey, err := s.client.Upload(req.Data, req.Filename+"_"+randomString)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "upload").
+			Str("petId", req.PetId).
+			Msg(constant.UploadToBucketErrorMessage)
+
+		return nil, status.Error(codes.Internal, constant.UploadToBucketErrorMessage)
+	}
+
+	raw, _ := DtoToRaw(&proto.Image{
+		PetId:     req.PetId,
+		ImageUrl:  imageUrl,
+		ObjectKey: objectKey,
+	})
+
+	err = s.repository.Create(raw)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "upload").
+			Str("petId", req.PetId).
+			Msg(constant.CreateImageErrorMessage)
+
+		return nil, status.Error(codes.Internal, constant.CreateImageErrorMessage)
+	}
+
+	return &proto.UploadImageResponse{Image: RawToDto(raw)}, nil
+}
+
+func (s *serviceImpl) AssignPet(_ context.Context, req *proto.AssignPetRequest) (res *proto.AssignPetResponse, err error) {
+	petId, err := uuid.Parse(req.PetId)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "assign pet").
+			Str("petId", req.PetId).
+			Msg(constant.PrimaryKeyRequiredErrorMessage)
+
+		return nil, status.Error(codes.InvalidArgument, constant.PrimaryKeyRequiredErrorMessage)
+	}
+
+	for _, id := range req.Ids {
+		err = s.repository.Update(id, &model.Image{
+			PetID: &petId,
+		})
+		if err == nil {
+			continue
+		}
+
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "assign pet").
+			Str("petId", req.PetId).
+			Msg("Error updating image in repo")
+
+		if strings.Contains(err.Error(), gorm.ErrForeignKeyViolated.Error()) {
+			return nil, status.Error(codes.NotFound, constant.PetIdNotFoundErrorMessage)
+		}
+		switch err {
+		case gorm.ErrRecordNotFound:
+			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+		default:
+			return nil, status.Error(codes.Internal, constant.InternalServerErrorMessage)
+		}
+	}
+
+	return &proto.AssignPetResponse{Success: true}, nil
 }
 
 func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (res *proto.DeleteImageResponse, err error) {
+	var image model.Image
+
+	err = s.repository.FindOne(req.Id, &image)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "delete").
+			Str("id", req.Id).
+			Msg("Error finding image from repo")
+		if err == gorm.ErrRecordNotFound {
+			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+		}
+
+		return nil, status.Error(codes.Internal, constant.InternalServerErrorMessage)
+	}
+
+	err = s.client.Delete(image.ObjectKey)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "delete").
+			Str("id", req.Id).
+			Msg(constant.DeleteFromBucketErrorMessage)
+
+		return nil, status.Error(codes.Internal, constant.DeleteFromBucketErrorMessage)
+	}
+
 	err = s.repository.Delete(req.Id)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "something wrong when deleting like")
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "delete").
+			Str("id", req.Id).
+			Msg(constant.DeleteImageErrorMessage)
+
+		return nil, status.Error(codes.Internal, constant.DeleteImageErrorMessage)
 	}
 
 	return &proto.DeleteImageResponse{Success: true}, nil
@@ -77,7 +201,17 @@ func DtoToRaw(in *proto.Image) (result *model.Image, err error) {
 
 	petId, err := uuid.Parse(in.PetId)
 	if err != nil {
-		return nil, err
+		return &model.Image{
+			Base: model.Base{
+				ID:        id,
+				CreatedAt: time.Time{},
+				UpdatedAt: time.Time{},
+				DeletedAt: gorm.DeletedAt{},
+			},
+			PetID:     nil,
+			ImageUrl:  in.ImageUrl,
+			ObjectKey: in.ObjectKey,
+		}, nil
 	}
 
 	return &model.Image{
@@ -87,8 +221,9 @@ func DtoToRaw(in *proto.Image) (result *model.Image, err error) {
 			UpdatedAt: time.Time{},
 			DeletedAt: gorm.DeletedAt{},
 		},
-		PetID:    &petId,
-		ImageUrl: in.ImageUrl,
+		PetID:     &petId,
+		ImageUrl:  in.ImageUrl,
+		ObjectKey: in.ObjectKey,
 	}, nil
 }
 
@@ -102,9 +237,19 @@ func RawToDtoList(in *[]*model.Image) []*proto.Image {
 }
 
 func RawToDto(in *model.Image) *proto.Image {
+	var id string
+	var petId string
+	if in.ID != uuid.Nil {
+		id = in.ID.String()
+	}
+	if in.PetID != nil {
+		petId = in.PetID.String()
+	}
+
 	return &proto.Image{
-		Id:       in.ID.String(),
-		PetId:    in.PetID.String(),
-		ImageUrl: in.ImageUrl,
+		Id:        id,
+		PetId:     petId,
+		ImageUrl:  in.ImageUrl,
+		ObjectKey: in.ObjectKey,
 	}
 }

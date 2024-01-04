@@ -3,13 +3,11 @@ package bucket
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/isd-sgcu/johnjud-file/cfgldr"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -51,7 +49,7 @@ func (c *Client) Upload(file []byte, objectKey string) (string, string, error) {
 		return "", "", errors.Wrap(err, "Error while uploading the object")
 	}
 
-	return fmt.Sprintf("https://%v.s3.%v.amazonaws.com/%v", c.conf.Region, c.conf.BucketName, uploadOutput.Key), *uploadOutput.Key, nil
+	return uploadOutput.Location, *uploadOutput.Key, nil
 }
 
 func (c *Client) Delete(objectKey string) error {
@@ -59,13 +57,12 @@ func (c *Client) Delete(objectKey string) error {
 	ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
 	defer cancel()
 
-	var objectIds []types.ObjectIdentifier
-	objectIds = append(objectIds, types.ObjectIdentifier{Key: aws.String(objectKey)})
-
-	_, err := c.s3.DeleteObjects(context.TODO(), &s3.DeleteObjectsInput{
+	input := &s3.DeleteObjectInput{
 		Bucket: aws.String(c.conf.BucketName),
-		Delete: &types.Delete{Objects: objectIds},
-	})
+		Key:    aws.String(objectKey),
+	}
+
+	_, err := c.s3.DeleteObject(context.TODO(), input)
 
 	if err != nil {
 		log.Error().

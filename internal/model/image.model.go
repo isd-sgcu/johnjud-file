@@ -6,7 +6,8 @@ import (
 
 type Image struct {
 	Base
-	PetID    *uuid.UUID `json:"pet_id" gorm:"index:idx_name,unique"`
-	Pet      *Pet       `json:"pet" gorm:"foreignKey:PetID;constraint:OnUpdate:CASCADE;OnDelete:SET NULL;"`
-	ImageUrl string     `json:"image_url" gorm:"mediumtext"`
+	PetID     *uuid.UUID `json:"pet_id" gorm:"index:idx_name,unique"`
+	Pet       *Pet       `json:"pet" gorm:"foreignKey:PetID;constraint:OnUpdate:CASCADE;OnDelete:SET NULL;"`
+	ImageUrl  string     `json:"image_url" gorm:"mediumtext"`
+	ObjectKey string     `json:"object_key" gorm:"mediumtext"`
 }

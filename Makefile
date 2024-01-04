@@ -7,7 +7,6 @@ publish:
 	docker push ghcr.io/isd-sgcu/johnjud-file
 
 mock-gen:
-	mockgen -source ./pkg/repository/image/image.repository.go -destination ./mocks/repository/image/image.mock.go
 	mockgen -source ./pkg/client/bucket/bucket.client.go -destination ./mocks/client/bucket/bucket.mock.go
 
 test:
@@ -17,4 +16,4 @@ test:
 	go tool cover -html=coverage.out -o coverage.html
 
 server:
-	go run ./src/.
+	go run ./cmd/.
