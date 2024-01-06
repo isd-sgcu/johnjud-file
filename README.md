@@ -29,7 +29,7 @@ Johnjud is a pet adoption web application of the [CUVET For Animal Welfare Club]
 
 ### Running
 1. Run `docker-compose up -d`
-2. Run `make server` or `go run ./src/.`
+2. Run `make server` or `go run ./cmd/.`
 
 ### Testing
 1. Run `make test` or `go test  -v -coverpkg ./... -coverprofile coverage.out -covermode count ./...`
