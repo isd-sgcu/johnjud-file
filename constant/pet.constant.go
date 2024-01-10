@@ -1,15 +1,15 @@
 package constant
 
-type Gender int
+type Gender string
 
 const (
-	MALE   = 1
-	FEMALE = 2
+	MALE   Gender = "male"
+	FEMALE Gender = "female"
 )
 
-type Status int
+type Status string
 
 const (
-	ADOPTED  = 1
-	FINDHOME = 2
+	ADOPTED  Status = "adopted"
+	FINDHOME Status = "findhome"
 )
