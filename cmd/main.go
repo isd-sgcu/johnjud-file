@@ -111,15 +111,6 @@ func main() {
 		return
 	}
 
-	// sdkConfig, err := config.LoadDefaultConfig(context.TODO())
-	// if err != nil {
-	// 	log.Fatal().
-	// 		Err(err).
-	// 		Str("service", "file").
-	// 		Msg("Failed to load AWS SDK config")
-	// 	return
-	// }
-
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", conf.App.Port))
 	if err != nil {
 		log.Fatal().
@@ -130,7 +121,6 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 
-	// awsClient := s3.NewFromConfig(sdkConfig)
 	bucketClient := bucket.NewClient(conf.Bucket, minioClient)
 
 	randomUtils := utils.NewRandomUtil()
