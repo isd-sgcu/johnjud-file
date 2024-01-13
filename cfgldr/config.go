@@ -14,9 +14,12 @@ type Database struct {
 	SSL      string `mapstructure:"ssl"`
 }
 
-type S3 struct {
-	BucketName string `mapstructure:"bucket_name"`
-	Region     string `mapstructure:"region"`
+type Bucket struct {
+	Endpoint        string `mapstructure:"endpoint"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	SecretAccessKey string `mapstructure:"secret_access_key"`
+	// BucketName string `mapstructure:"bucket_name"`
+	// Region     string `mapstructure:"region"`
 }
 
 type App struct {
@@ -27,7 +30,7 @@ type App struct {
 type Config struct {
 	App      App      `mapstructure:"app"`
 	Database Database `mapstructure:"database"`
-	S3       S3       `mapstructure:"s3"`
+	Bucket   Bucket   `mapstructure:"bucket"`
 }
 
 func LoadConfig() (config *Config, err error) {

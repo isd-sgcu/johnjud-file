@@ -11,6 +11,6 @@ type Client interface {
 	Delete(string) error
 }
 
-func NewClient(config cfgldr.S3, awsClient *s3.Client) Client {
+func NewClient(config cfgldr.Bucket, awsClient *s3.Client) Client {
 	return bucket.NewClient(config, awsClient)
 }
