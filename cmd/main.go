@@ -10,8 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/isd-sgcu/johnjud-file/cfgldr"
 	"github.com/isd-sgcu/johnjud-file/database"
 	imageRepo "github.com/isd-sgcu/johnjud-file/internal/repository/image"
@@ -19,6 +17,8 @@ import (
 	"github.com/isd-sgcu/johnjud-file/internal/utils"
 	"github.com/isd-sgcu/johnjud-file/pkg/client/bucket"
 	imagePb "github.com/isd-sgcu/johnjud-go-proto/johnjud/file/image/v1"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -91,7 +91,7 @@ func main() {
 			Msg("Failed to load config")
 	}
 
-	db, err := database.InitPostgresDatabase(&conf.Database, conf.App.Debug)
+	db, err := database.InitPostgresDatabase(&conf.Database, conf.App.IsDevelopment())
 	if err != nil {
 		log.Fatal().
 			Err(err).
@@ -99,12 +99,15 @@ func main() {
 			Msg("Failed to init postgres connection")
 	}
 
-	sdkConfig, err := config.LoadDefaultConfig(context.TODO())
+	minioClient, err := minio.New(conf.Bucket.Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(conf.Bucket.AccessKeyID, conf.Bucket.SecretAccessKey, ""),
+		Secure: conf.Bucket.UseSSL,
+	})
 	if err != nil {
 		log.Fatal().
 			Err(err).
 			Str("service", "file").
-			Msg("Failed to load AWS SDK config")
+			Msg("Failed to start Minio client")
 		return
 	}
 
@@ -118,8 +121,7 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 
-	awsClient := s3.NewFromConfig(sdkConfig)
-	bucketClient := bucket.NewClient(conf.S3, awsClient)
+	bucketClient := bucket.NewClient(conf.Bucket, minioClient)
 
 	randomUtils := utils.NewRandomUtil()
 	imageRepository := imageRepo.NewRepository(db)
