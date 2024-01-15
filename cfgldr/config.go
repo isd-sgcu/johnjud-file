@@ -1,6 +1,8 @@
 package cfgldr
 
 import (
+	"os"
+
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
@@ -29,12 +31,18 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	viper.SetConfigFile(".env")
-	err := viper.ReadInConfig()
-	if err != nil {
-		log.Fatal().Err(err).
-			Str("service", "file").
-			Msg("Failed to load .env file")
+	env := os.Getenv("APP_ENV")
+	if env == "production" {
+		viper.AutomaticEnv()
+	}
+	if env == "development" {
+		viper.SetConfigFile(".env")
+		err := viper.ReadInConfig()
+		if err != nil {
+			log.Fatal().Err(err).
+				Str("service", "file").
+				Msg("Failed to load .env file")
+		}
 	}
 
 	var dbConfig Database
@@ -57,6 +65,8 @@ func LoadConfig() (*Config, error) {
 		App:      appConfig,
 		Bucket:   bucketConfig,
 	}
+
+	log.Info().Interface("config", config).Msg("Loaded config")
 
 	return config, nil
 }
