@@ -1,16 +1,10 @@
 #!/bin/sh
 
-## Usage:
-##   . ./export-env.sh ; $COMMAND
-##   . ./export-env.sh ; echo ${MINIENTREGA_FECHALIMITE}
-
-unamestr=$(uname)
-if [ "$unamestr" = 'Linux' ]; then
-
-  export $(grep -v '^#' .env | xargs -d '\n')
-
-elif [ "$unamestr" = 'FreeBSD' ] || [ "$unamestr" = 'Darwin' ]; then
-
-  export $(grep -v '^#' .env | xargs -0)
-
+if [ -f .env ]; then
+  # Load environment variables from .env file
+  source .env
+  echo "Environment variables loaded from .env file."
+else
+  echo ".env file not found."
+  exit 1
 fi
