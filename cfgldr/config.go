@@ -40,7 +40,7 @@ func LoadConfig() (*Config, error) {
 	appCfgLdr := viper.New()
 	appCfgLdr.SetEnvPrefix("APP")
 	appCfgLdr.AutomaticEnv()
-	dbCfgLdr.AllowEmptyEnv(false)
+	appCfgLdr.AllowEmptyEnv(false)
 	appConfig := App{}
 	if err := appCfgLdr.Unmarshal(&appConfig); err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func LoadConfig() (*Config, error) {
 	bucketCfgLdr := viper.New()
 	bucketCfgLdr.SetEnvPrefix("BUCKET")
 	bucketCfgLdr.AutomaticEnv()
-	dbCfgLdr.AllowEmptyEnv(false)
+	bucketCfgLdr.AllowEmptyEnv(false)
 	bucketConfig := Bucket{}
 	if err := bucketCfgLdr.Unmarshal(&bucketConfig); err != nil {
 		return nil, err
