@@ -1,27 +1,24 @@
 package cfgldr
 
 import (
-	"os"
-
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
 type Database struct {
-	Url string `mapstructure:"db_url"`
+	Url string `mapstructure:"URL"`
 }
 
 type Bucket struct {
-	Endpoint        string `mapstructure:"bucket_endpoint"`
-	AccessKeyID     string `mapstructure:"bucket_access_key"`
-	SecretAccessKey string `mapstructure:"bucket_secret_key"`
-	UseSSL          bool   `mapstructure:"bucket_use_ssl"`
-	BucketName      string `mapstructure:"bucket_name"`
+	Endpoint        string `mapstructure:"ENDPOINT"`
+	AccessKeyID     string `mapstructure:"ACCESS_KEY"`
+	SecretAccessKey string `mapstructure:"SECRET_KEY"`
+	UseSSL          bool   `mapstructure:"USE_SSL"`
+	BucketName      string `mapstructure:"NAME"`
 }
 
 type App struct {
-	Port int    `mapstructure:"app_port"`
-	Env  string `mapstructure:"app_env"`
+	Port int    `mapstructure:"PORT"`
+	Env  string `mapstructure:"ENV"`
 }
 
 type Config struct {
@@ -31,32 +28,30 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	env := os.Getenv("APP_ENV")
-	if env == "production" {
-		viper.AutomaticEnv()
-	}
-	if env == "development" {
-		viper.SetConfigFile(".env")
-		err := viper.ReadInConfig()
-		if err != nil {
-			log.Fatal().Err(err).
-				Str("service", "file").
-				Msg("Failed to load .env file")
-		}
-	}
-
-	var dbConfig Database
-	if err := viper.Unmarshal(&dbConfig); err != nil {
+	dbCfgLdr := viper.New()
+	dbCfgLdr.SetEnvPrefix("DB")
+	dbCfgLdr.AutomaticEnv()
+	dbCfgLdr.AllowEmptyEnv(false)
+	dbConfig := Database{}
+	if err := dbCfgLdr.Unmarshal(&dbConfig); err != nil {
 		return nil, err
 	}
 
-	var appConfig App
-	if err := viper.Unmarshal(&appConfig); err != nil {
+	appCfgLdr := viper.New()
+	appCfgLdr.SetEnvPrefix("APP")
+	appCfgLdr.AutomaticEnv()
+	dbCfgLdr.AllowEmptyEnv(false)
+	appConfig := App{}
+	if err := appCfgLdr.Unmarshal(&appConfig); err != nil {
 		return nil, err
 	}
 
-	var bucketConfig Bucket
-	if err := viper.Unmarshal(&bucketConfig); err != nil {
+	bucketCfgLdr := viper.New()
+	bucketCfgLdr.SetEnvPrefix("BUCKET")
+	bucketCfgLdr.AutomaticEnv()
+	dbCfgLdr.AllowEmptyEnv(false)
+	bucketConfig := Bucket{}
+	if err := bucketCfgLdr.Unmarshal(&bucketConfig); err != nil {
 		return nil, err
 	}
 
@@ -65,8 +60,6 @@ func LoadConfig() (*Config, error) {
 		App:      appConfig,
 		Bucket:   bucketConfig,
 	}
-
-	log.Info().Interface("config", config).Msg("Loaded config")
 
 	return config, nil
 }

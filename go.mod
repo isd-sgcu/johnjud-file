@@ -12,7 +12,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.66
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.31.0
-	github.com/spf13/viper v1.18.2
+	github.com/spf13/viper v1.18.1
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/grpc v1.60.1
 	gorm.io/driver/postgres v1.5.4
