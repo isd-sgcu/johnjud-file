@@ -77,7 +77,7 @@ func (s *serviceImpl) Upload(_ context.Context, req *proto.UploadImageRequest) (
 		return nil, status.Error(codes.Internal, "Error while generating random string")
 	}
 
-	imageUrl, objectKey, err := s.client.Upload(req.Data, req.Filename+"_"+randomString)
+	imageUrl, objectKey, err := s.client.Upload(req.Data, randomString+"_"+req.Filename)
 	if err != nil {
 		log.Error().Err(err).
 			Str("service", "image").

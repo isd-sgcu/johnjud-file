@@ -51,7 +51,7 @@ func (t *ImageServiceTest) SetupTest() {
 	t.objectKey = faker.Name()
 	t.imageUrl = faker.URL()
 	t.randomString = "random"
-	t.objectKeyWithRandom = t.objectKey + "_" + t.randomString
+	t.objectKeyWithRandom = t.randomString + "_" + t.objectKey
 
 	t.findReq = &proto.FindImageByPetIdRequest{
 		PetId: t.petId.String(),
@@ -189,13 +189,13 @@ func (t *ImageServiceTest) TestUploadSuccess() {
 			Id:        t.imageProto.Id,
 			PetId:     t.imageProto.PetId,
 			ImageUrl:  t.imageProto.ImageUrl,
-			ObjectKey: t.imageProto.ObjectKey + "_" + t.randomString,
+			ObjectKey: t.randomString + "_" + t.imageProto.ObjectKey,
 		},
 	}
 	createImage := &model.Image{
 		PetID:     t.image.PetID,
 		ImageUrl:  t.image.ImageUrl,
-		ObjectKey: t.image.ObjectKey + "_" + t.randomString,
+		ObjectKey: t.randomString + "_" + t.image.ObjectKey,
 	}
 	createImageReturn := &model.Image{
 		Base: model.Base{
@@ -205,7 +205,7 @@ func (t *ImageServiceTest) TestUploadSuccess() {
 		},
 		PetID:     &t.petId,
 		ImageUrl:  t.imageUrl,
-		ObjectKey: t.objectKey + "_" + t.randomString,
+		ObjectKey: t.randomString + "_" + t.objectKey,
 	}
 
 	controller := gomock.NewController(t.T())
@@ -229,7 +229,7 @@ func (t *ImageServiceTest) TestUploadSuccessNoPetID() {
 		Image: &proto.Image{
 			Id:        t.imageProto.Id,
 			ImageUrl:  t.imageProto.ImageUrl,
-			ObjectKey: t.imageProto.ObjectKey + "_" + t.randomString,
+			ObjectKey: t.randomString + "_" + t.imageProto.ObjectKey,
 		},
 	}
 	uploadInput := &proto.UploadImageRequest{
@@ -239,7 +239,7 @@ func (t *ImageServiceTest) TestUploadSuccessNoPetID() {
 
 	createImage := &model.Image{
 		ImageUrl:  t.image.ImageUrl,
-		ObjectKey: t.image.ObjectKey + "_" + t.randomString,
+		ObjectKey: t.randomString + "_" + t.image.ObjectKey,
 	}
 	createImageReturn := &model.Image{
 		Base: model.Base{
@@ -248,7 +248,7 @@ func (t *ImageServiceTest) TestUploadSuccessNoPetID() {
 			UpdatedAt: time.Now(),
 		},
 		ImageUrl:  t.imageUrl,
-		ObjectKey: t.objectKey + "_" + t.randomString,
+		ObjectKey: t.randomString + "_" + t.objectKey,
 	}
 
 	controller := gomock.NewController(t.T())
@@ -317,7 +317,7 @@ func (t *ImageServiceTest) TestUploadRepoFailed() {
 	createImage := &model.Image{
 		PetID:     t.image.PetID,
 		ImageUrl:  t.image.ImageUrl,
-		ObjectKey: t.image.ObjectKey + "_" + t.randomString,
+		ObjectKey: t.randomString + "_" + t.image.ObjectKey,
 	}
 
 	controller := gomock.NewController(t.T())

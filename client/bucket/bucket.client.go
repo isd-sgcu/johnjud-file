@@ -39,7 +39,7 @@ func (c *Client) Upload(file []byte, objectKey string) (string, string, error) {
 		return "", "", errors.Wrap(err, "Error while uploading the object")
 	}
 
-	return uploadOutput.Location, uploadOutput.Key, nil
+	return c.getURL(objectKey), uploadOutput.Key, nil
 }
 
 func (c *Client) Delete(objectKey string) error {
@@ -62,4 +62,8 @@ func (c *Client) Delete(objectKey string) error {
 	}
 
 	return nil
+}
+
+func (c *Client) getURL(objectKey string) string {
+	return "https://" + c.conf.Endpoint + "/" + c.conf.BucketName + "/" + objectKey
 }
