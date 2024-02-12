@@ -33,6 +33,22 @@ func NewService(client bucket.Client, repository image.Repository, random utils.
 	}
 }
 
+func (s *serviceImpl) FindAll(_ context.Context, req *proto.FindAllImageRequest) (res *proto.FindAllImageResponse, err error) {
+	var images []*model.Image
+
+	err = s.repository.FindAll(&images)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "find all").
+			Msg("Error finding all images")
+
+		return nil, status.Error(codes.Internal, constant.InternalServerErrorMessage)
+	}
+
+	return &proto.FindAllImageResponse{Images: RawToDtoList(&images)}, nil
+}
+
 func (s *serviceImpl) FindByPetId(_ context.Context, req *proto.FindImageByPetIdRequest) (res *proto.FindImageByPetIdResponse, err error) {
 	var images []*model.Image
 
