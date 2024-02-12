@@ -9,6 +9,16 @@ type ImageRepositoryMock struct {
 	mock.Mock
 }
 
+func (m *ImageRepositoryMock) FindAll(images *[]*model.Image) error {
+	args := m.Called(images)
+	if args.Get(0) != nil {
+		*images = *args.Get(0).(*[]*model.Image)
+		return nil
+	}
+
+	return args.Error(1)
+}
+
 func (m *ImageRepositoryMock) FindOne(id string, image *model.Image) error {
 	args := m.Called(id, image)
 	if args.Get(0) != nil {
@@ -51,6 +61,12 @@ func (m *ImageRepositoryMock) Update(id string, image *model.Image) error {
 
 func (m *ImageRepositoryMock) Delete(id string) error {
 	args := m.Called(id)
+
+	return args.Error(0)
+}
+
+func (m *ImageRepositoryMock) DeleteMany(ids []string) error {
+	args := m.Called(ids)
 
 	return args.Error(0)
 }
