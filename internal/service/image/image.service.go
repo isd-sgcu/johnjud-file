@@ -206,6 +206,50 @@ func (s *serviceImpl) Delete(_ context.Context, req *proto.DeleteImageRequest) (
 	return &proto.DeleteImageResponse{Success: true}, nil
 }
 
+func (s *serviceImpl) DeleteByPetId(_ context.Context, req *proto.DeleteByPetIdRequest) (res *proto.DeleteByPetIdResponse, err error) {
+	var images []*model.Image
+
+	err = s.repository.FindByPetId(req.PetId, &images)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "delete by pet id").
+			Str("pet id", req.PetId).
+			Msg("Error finding image from repo")
+		if err == gorm.ErrRecordNotFound {
+			return nil, status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+		}
+
+		return nil, status.Error(codes.Internal, constant.InternalServerErrorMessage)
+	}
+
+	imageObjectKeys := ExtractImageObjectKeys(images)
+	err = s.client.DeleteMany(imageObjectKeys)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "delete by pet id").
+			Interface("image object keys", imageObjectKeys).
+			Msg(constant.DeleteFromBucketErrorMessage)
+
+		return nil, status.Error(codes.Internal, constant.DeleteFromBucketErrorMessage)
+	}
+
+	imageIds := ExtractImageIds(images)
+	err = s.repository.DeleteMany(imageIds)
+	if err != nil {
+		log.Error().Err(err).
+			Str("service", "image").
+			Str("module", "delete by pet id").
+			Interface("image ids", imageIds).
+			Msg(constant.DeleteImageErrorMessage)
+
+		return nil, status.Error(codes.Internal, constant.DeleteImageErrorMessage)
+	}
+
+	return &proto.DeleteByPetIdResponse{Success: true}, nil
+}
+
 func DtoToRaw(in *proto.Image) (result *model.Image, err error) {
 	var id uuid.UUID
 	if in.Id != "" {
@@ -268,4 +312,22 @@ func RawToDto(in *model.Image) *proto.Image {
 		ImageUrl:  in.ImageUrl,
 		ObjectKey: in.ObjectKey,
 	}
+}
+
+func ExtractImageIds(in []*model.Image) []string {
+	var imageIds []string
+	for _, image := range in {
+		imageIds = append(imageIds, image.ID.String())
+	}
+
+	return imageIds
+}
+
+func ExtractImageObjectKeys(in []*model.Image) []string {
+	var imageObjectKeys []string
+	for _, image := range in {
+		imageObjectKeys = append(imageObjectKeys, image.ObjectKey)
+	}
+
+	return imageObjectKeys
 }
