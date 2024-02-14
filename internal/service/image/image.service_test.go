@@ -28,13 +28,17 @@ type ImageServiceTest struct {
 	id                  uuid.UUID
 	petId               uuid.UUID
 	objectKey           string
+	objectKeys          []string
 	imageUrl            string
 	randomString        string
 	objectKeyWithRandom string
+	findAllReq          *proto.FindAllImageRequest
 	findReq             *proto.FindImageByPetIdRequest
 	uploadReq           *proto.UploadImageRequest
 	assignReq           *proto.AssignPetRequest
 	deleteReq           *proto.DeleteImageRequest
+	deleteByPetIdReq    *proto.DeleteByPetIdRequest
+	imageIds            []string
 	imageProto          *proto.Image
 	image               *model.Image
 	images              []*model.Image
@@ -53,6 +57,7 @@ func (t *ImageServiceTest) SetupTest() {
 	t.randomString = "random"
 	t.objectKeyWithRandom = t.randomString + "_" + t.objectKey
 
+	t.findAllReq = &proto.FindAllImageRequest{}
 	t.findReq = &proto.FindImageByPetIdRequest{
 		PetId: t.petId.String(),
 	}
@@ -67,6 +72,9 @@ func (t *ImageServiceTest) SetupTest() {
 	}
 	t.deleteReq = &proto.DeleteImageRequest{
 		Id: t.id.String(),
+	}
+	t.deleteByPetIdReq = &proto.DeleteByPetIdRequest{
+		PetId: t.petId.String(),
 	}
 	t.imageProto = &proto.Image{
 		Id:        t.id.String(),
@@ -106,6 +114,62 @@ func (t *ImageServiceTest) SetupTest() {
 			ObjectKey: faker.Name(),
 		},
 	}
+	t.objectKeys = []string{t.images[0].ObjectKey, t.images[1].ObjectKey}
+	t.imageIds = []string{t.images[0].ID.String(), t.images[1].ID.String()}
+}
+
+func (t *ImageServiceTest) TestFindAllSuccess() {
+	expected := &proto.FindAllImageResponse{
+		Images: []*proto.Image{
+			{
+				Id:        t.images[0].ID.String(),
+				PetId:     t.images[0].PetID.String(),
+				ImageUrl:  t.images[0].ImageUrl,
+				ObjectKey: t.images[0].ObjectKey,
+			},
+			{
+				Id:        t.images[1].ID.String(),
+				PetId:     t.images[1].PetID.String(),
+				ImageUrl:  t.images[1].ImageUrl,
+				ObjectKey: t.images[1].ObjectKey,
+			},
+		},
+	}
+	var images []*model.Image
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
+	imageRepo.On("FindAll", &images).Return(&t.images, nil)
+
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
+	actual, err := imageService.FindAll(context.Background(), t.findAllReq)
+
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), expected, actual)
+}
+
+func (t *ImageServiceTest) TestFindAllInternalErr() {
+	expected := status.Error(codes.Internal, constant.InternalServerErrorMessage)
+	var images []*model.Image
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
+	imageRepo.On("FindAll", &images).Return(nil, errors.New("Error finding image in db"))
+
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
+	actual, err := imageService.FindAll(context.Background(), t.findAllReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.Internal, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
 }
 
 func (t *ImageServiceTest) TestFindByPetIdSuccess() {
@@ -586,6 +650,95 @@ func (t *ImageServiceTest) TestDeleteInternalErr() {
 
 	imageService := NewService(bucketClient, imageRepo, randomUtils)
 	actual, err := imageService.Delete(context.Background(), t.deleteReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.Internal, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
+func (t *ImageServiceTest) TestDeleteByPetIdSuccess() {
+	expected := &proto.DeleteByPetIdResponse{
+		Success: true,
+	}
+	var images []*model.Image
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
+	imageRepo.On("FindByPetId", t.petId.String(), &images).Return(&t.images, nil)
+	imageRepo.On("DeleteMany", t.imageIds).Return(nil)
+	bucketClient.EXPECT().DeleteMany(t.objectKeys).Return(nil)
+
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
+	actual, err := imageService.DeleteByPetId(context.Background(), t.deleteByPetIdReq)
+
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), expected, actual)
+}
+
+func (t *ImageServiceTest) TestDeleteByPetIdBucketFailed() {
+	expected := status.Error(codes.Internal, constant.DeleteFromBucketErrorMessage)
+	var images []*model.Image
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
+	imageRepo.On("FindByPetId", t.petId.String(), &images).Return(&t.images, nil)
+	imageRepo.On("DeleteMany", t.imageIds).Return(nil)
+	bucketClient.EXPECT().DeleteMany(t.objectKeys).Return(errors.New("Error deleting from bucket client"))
+
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
+	actual, err := imageService.DeleteByPetId(context.Background(), t.deleteByPetIdReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.Internal, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
+func (t *ImageServiceTest) TestDeleteByPetIdNotFound() {
+	expected := status.Error(codes.NotFound, constant.ImageNotFoundErrorMessage)
+	var images []*model.Image
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
+	imageRepo.On("FindByPetId", t.petId.String(), &images).Return(nil, gorm.ErrRecordNotFound)
+
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
+	actual, err := imageService.DeleteByPetId(context.Background(), t.deleteByPetIdReq)
+
+	status, ok := status.FromError(err)
+	assert.True(t.T(), ok)
+	assert.Nil(t.T(), actual)
+	assert.Equal(t.T(), codes.NotFound, status.Code())
+	assert.Equal(t.T(), expected.Error(), err.Error())
+}
+
+func (t *ImageServiceTest) TestDeleteByPetIdInternalErr() {
+	expected := status.Error(codes.Internal, constant.DeleteImageErrorMessage)
+	var images []*model.Image
+
+	controller := gomock.NewController(t.T())
+
+	imageRepo := &mock_image.ImageRepositoryMock{}
+	bucketClient := mock_bucket.NewMockClient(controller)
+	randomUtils := &mock_random.RandomUtilMock{}
+	imageRepo.On("FindByPetId", t.petId.String(), &images).Return(&t.images, nil)
+	imageRepo.On("DeleteMany", t.imageIds).Return(errors.New(constant.DeleteImageErrorMessage))
+	bucketClient.EXPECT().DeleteMany(t.objectKeys).Return(nil)
+
+	imageService := NewService(bucketClient, imageRepo, randomUtils)
+	actual, err := imageService.DeleteByPetId(context.Background(), t.deleteByPetIdReq)
 
 	status, ok := status.FromError(err)
 	assert.True(t.T(), ok)

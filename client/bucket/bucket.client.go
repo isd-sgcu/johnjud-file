@@ -64,6 +64,30 @@ func (c *Client) Delete(objectKey string) error {
 	return nil
 }
 
+func (c *Client) DeleteMany(objectKeys []string) error {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
+	defer cancel()
+
+	opts := minio.RemoveObjectOptions{
+		GovernanceBypass: true,
+	}
+	for _, objectKey := range objectKeys {
+		err := c.minio.RemoveObject(context.Background(), c.conf.BucketName, objectKey, opts)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("service", "file").
+				Str("module", "bucket client").
+				Msgf("Couldn't delete object from bucket %v:%v.", c.conf.BucketName, objectKey)
+
+			return errors.Wrap(err, "Error while deleting the object")
+		}
+	}
+
+	return nil
+}
+
 func (c *Client) getURL(objectKey string) string {
 	return "https://" + c.conf.Endpoint + "/" + c.conf.BucketName + "/" + objectKey
 }

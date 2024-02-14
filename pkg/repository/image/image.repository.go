@@ -5,9 +5,11 @@ import (
 )
 
 type Repository interface {
-	FindOne(id string, result *model.Image) error
-	FindByPetId(id string, result *[]*model.Image) error
-	Create(in *model.Image) error
-	Update(id string, in *model.Image) error
-	Delete(id string) error
+	FindAll(*[]*model.Image) error
+	FindOne(string, *model.Image) error
+	FindByPetId(string, *[]*model.Image) error
+	Create(*model.Image) error
+	Update(string, *model.Image) error
+	Delete(string) error
+	DeleteMany([]string) error
 }

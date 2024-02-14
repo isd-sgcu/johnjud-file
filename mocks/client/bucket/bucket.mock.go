@@ -47,6 +47,20 @@ func (mr *MockClientMockRecorder) Delete(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockClient)(nil).Delete), arg0)
 }
 
+// DeleteMany mocks base method.
+func (m *MockClient) DeleteMany(arg0 []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteMany", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteMany indicates an expected call of DeleteMany.
+func (mr *MockClientMockRecorder) DeleteMany(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMany", reflect.TypeOf((*MockClient)(nil).DeleteMany), arg0)
+}
+
 // Upload mocks base method.
 func (m *MockClient) Upload(arg0 []byte, arg1 string) (string, string, error) {
 	m.ctrl.T.Helper()
