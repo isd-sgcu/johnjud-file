@@ -38,5 +38,8 @@ func (r *repositoryImpl) Delete(id string) error {
 	return r.db.Where("id = ?", id).Delete(&model.Image{}).Error
 }
 func (r *repositoryImpl) DeleteMany(ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
 	return r.db.Delete(&model.Image{}, ids).Error
 }
